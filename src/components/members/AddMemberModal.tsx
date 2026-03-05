@@ -24,7 +24,9 @@ export function AddMemberModal({
   relatedMemberId,
   defaultRelationType,
 }: AddMemberModalProps) {
-  const { addMember, addRelationship, members } = useFamilyStore();
+  const addMember = useFamilyStore((s) => s.addMember);
+  const addRelationship = useFamilyStore((s) => s.addRelationship);
+  const members = useFamilyStore((s) => s.members);
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender>('male');
   const [dateOfBirth, setDateOfBirth] = useState('');

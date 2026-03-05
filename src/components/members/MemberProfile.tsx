@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FamilyMember } from '@/lib/types';
 import { useFamilyStore } from '@/lib/family-store';
 import { MemberAvatar } from './MemberAvatar';
@@ -24,15 +24,20 @@ interface MemberProfileProps {
 }
 
 export function MemberProfile({ member }: MemberProfileProps) {
-  const { getParents, getSpouse, getChildren, getSiblings } = useFamilyStore();
+  const getParents = useFamilyStore((s) => s.getParents);
+  const getSpouse = useFamilyStore((s) => s.getSpouse);
+  const getChildren = useFamilyStore((s) => s.getChildren);
+  const getSiblings = useFamilyStore((s) => s.getSiblings);
+  const members = useFamilyStore((s) => s.members);
+  const relationships = useFamilyStore((s) => s.relationships);
   const [showEdit, setShowEdit] = useState(false);
   const [showAddChild, setShowAddChild] = useState(false);
   const [showAddSpouse, setShowAddSpouse] = useState(false);
 
-  const parents = getParents(member.id);
-  const spouse = getSpouse(member.id);
-  const children = getChildren(member.id);
-  const siblings = getSiblings(member.id);
+  const parents = useMemo(() => getParents(member.id), [getParents, member.id, members, relationships]);
+  const spouse = useMemo(() => getSpouse(member.id), [getSpouse, member.id, members, relationships]);
+  const children = useMemo(() => getChildren(member.id), [getChildren, member.id, members, relationships]);
+  const siblings = useMemo(() => getSiblings(member.id), [getSiblings, member.id, members, relationships]);
   const age = calculateAge(member.dateOfBirth, member.dateOfDeath);
   const isDeceased = !!member.dateOfDeath;
 

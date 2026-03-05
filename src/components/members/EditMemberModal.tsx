@@ -18,7 +18,8 @@ interface EditMemberModalProps {
 }
 
 export function EditMemberModal({ open, onOpenChange, member }: EditMemberModalProps) {
-  const { updateMember, deleteMember } = useFamilyStore();
+  const updateMember = useFamilyStore((s) => s.updateMember);
+  const deleteMember = useFamilyStore((s) => s.deleteMember);
   const [name, setName] = useState(member.name);
   const [gender, setGender] = useState<Gender>(member.gender);
   const [dateOfBirth, setDateOfBirth] = useState(member.dateOfBirth || '');
@@ -30,6 +31,7 @@ export function EditMemberModal({ open, onOpenChange, member }: EditMemberModalP
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
     setName(member.name);
     setGender(member.gender);
     setDateOfBirth(member.dateOfBirth || '');
@@ -38,7 +40,7 @@ export function EditMemberModal({ open, onOpenChange, member }: EditMemberModalP
     setEmail(member.email || '');
     setLocation(member.location || '');
     setBio(member.bio || '');
-  }, [member]);
+  }, [open, member.id]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

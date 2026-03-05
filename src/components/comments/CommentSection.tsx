@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useFamilyStore } from '@/lib/family-store';
 import { CommentForm } from './CommentForm';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,8 +24,10 @@ const typeLabels: Record<CommentType, string> = {
 };
 
 export function CommentSection({ memberId }: { memberId: string }) {
-  const comments = useFamilyStore((s) =>
-    s.comments.filter((c) => c.memberId === memberId)
+  const allComments = useFamilyStore((s) => s.comments);
+  const comments = useMemo(
+    () => allComments.filter((c) => c.memberId === memberId),
+    [allComments, memberId]
   );
 
   return (

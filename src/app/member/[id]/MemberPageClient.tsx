@@ -12,7 +12,7 @@ import Link from 'next/link';
 
 export default function MemberPageClient() {
   const { id } = useParams<{ id: string }>();
-  const member = useFamilyStore((s) => s.getMemberById(id));
+  const member = useFamilyStore((s) => s.members.find((m) => m.id === id));
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">

@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  generateBuildId: () => `build-${Date.now()}`,
 };
 
 export default nextConfig;
