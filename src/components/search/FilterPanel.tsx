@@ -4,13 +4,7 @@ import { SearchFilters } from '@/lib/search';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect, NativeSelectItem } from '@/components/ui/native-select';
 import { X } from 'lucide-react';
 
 interface FilterPanelProps {
@@ -50,19 +44,15 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <Label className="text-xs">Gender</Label>
-          <Select
+          <NativeSelect
             value={filters.gender || 'all'}
             onValueChange={(v) => update({ gender: v === 'all' ? undefined : v })}
+            className="h-8 text-xs"
           >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-            </SelectContent>
-          </Select>
+            <NativeSelectItem value="all">All</NativeSelectItem>
+            <NativeSelectItem value="male">Male</NativeSelectItem>
+            <NativeSelectItem value="female">Female</NativeSelectItem>
+          </NativeSelect>
         </div>
 
         <div>
@@ -71,9 +61,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
             type="number"
             className="h-8 text-xs"
             value={filters.minAge ?? ''}
-            onChange={(e) =>
-              update({ minAge: e.target.value ? parseInt(e.target.value) : undefined })
-            }
+            onChange={(e) => update({ minAge: e.target.value ? parseInt(e.target.value) : undefined })}
             placeholder="0"
           />
         </div>
@@ -84,9 +72,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
             type="number"
             className="h-8 text-xs"
             value={filters.maxAge ?? ''}
-            onChange={(e) =>
-              update({ maxAge: e.target.value ? parseInt(e.target.value) : undefined })
-            }
+            onChange={(e) => update({ maxAge: e.target.value ? parseInt(e.target.value) : undefined })}
             placeholder="100"
           />
         </div>
@@ -103,42 +89,30 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
 
         <div>
           <Label className="text-xs">Generation</Label>
-          <Select
+          <NativeSelect
             value={filters.generation?.toString() || 'all'}
-            onValueChange={(v) =>
-              update({ generation: v === 'all' ? undefined : parseInt(v) })
-            }
+            onValueChange={(v) => update({ generation: v === 'all' ? undefined : parseInt(v) })}
+            className="h-8 text-xs"
           >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="0">Great-Grandparents</SelectItem>
-              <SelectItem value="1">Grandparents</SelectItem>
-              <SelectItem value="2">Parents</SelectItem>
-              <SelectItem value="3">Children</SelectItem>
-            </SelectContent>
-          </Select>
+            <NativeSelectItem value="all">All</NativeSelectItem>
+            <NativeSelectItem value="0">Great-Grandparents</NativeSelectItem>
+            <NativeSelectItem value="1">Grandparents</NativeSelectItem>
+            <NativeSelectItem value="2">Parents</NativeSelectItem>
+            <NativeSelectItem value="3">Children</NativeSelectItem>
+          </NativeSelect>
         </div>
 
         <div>
           <Label className="text-xs">Status</Label>
-          <Select
+          <NativeSelect
             value={filters.isAlive === undefined ? 'all' : filters.isAlive ? 'alive' : 'deceased'}
-            onValueChange={(v) =>
-              update({ isAlive: v === 'all' ? undefined : v === 'alive' })
-            }
+            onValueChange={(v) => update({ isAlive: v === 'all' ? undefined : v === 'alive' })}
+            className="h-8 text-xs"
           >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="alive">Living</SelectItem>
-              <SelectItem value="deceased">Deceased</SelectItem>
-            </SelectContent>
-          </Select>
+            <NativeSelectItem value="all">All</NativeSelectItem>
+            <NativeSelectItem value="alive">Living</NativeSelectItem>
+            <NativeSelectItem value="deceased">Deceased</NativeSelectItem>
+          </NativeSelect>
         </div>
 
         <div className="flex items-end">
@@ -148,7 +122,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
             className="h-8 text-xs w-full"
             onClick={() => update({ upcomingBirthdays: !filters.upcomingBirthdays })}
           >
-            🎂 Upcoming Birthdays
+            Upcoming Birthdays
           </Button>
         </div>
       </div>

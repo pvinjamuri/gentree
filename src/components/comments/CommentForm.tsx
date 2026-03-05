@@ -5,13 +5,7 @@ import { nanoid } from 'nanoid';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect, NativeSelectItem } from '@/components/ui/native-select';
 import { useFamilyStore } from '@/lib/family-store';
 import { CommentType } from '@/lib/types';
 import { Send } from 'lucide-react';
@@ -48,17 +42,12 @@ export function CommentForm({ memberId }: { memberId: string }) {
           className="flex-1 bg-white"
           required
         />
-        <Select value={type} onValueChange={(v) => setType(v as CommentType)}>
-          <SelectTrigger className="w-32 bg-white">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="general">General</SelectItem>
-            <SelectItem value="birthday">Birthday</SelectItem>
-            <SelectItem value="condolence">Condolence</SelectItem>
-            <SelectItem value="memory">Memory</SelectItem>
-          </SelectContent>
-        </Select>
+        <NativeSelect value={type} onValueChange={(v) => setType(v as CommentType)} className="w-32 bg-white">
+          <NativeSelectItem value="general">General</NativeSelectItem>
+          <NativeSelectItem value="birthday">Birthday</NativeSelectItem>
+          <NativeSelectItem value="condolence">Condolence</NativeSelectItem>
+          <NativeSelectItem value="memory">Memory</NativeSelectItem>
+        </NativeSelect>
       </div>
       <div className="flex gap-2">
         <Textarea

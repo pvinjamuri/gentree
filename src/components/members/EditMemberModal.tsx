@@ -1,23 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Modal, ModalHeader, ModalContent } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect, NativeSelectItem } from '@/components/ui/native-select';
 import { useFamilyStore } from '@/lib/family-store';
 import { FamilyMember, Gender } from '@/lib/types';
 import { Trash2 } from 'lucide-react';
@@ -72,12 +61,9 @@ export function EditMemberModal({ open, onOpenChange, member }: EditMemberModalP
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit {member.name}</DialogTitle>
-        </DialogHeader>
-
+    <Modal open={open} onOpenChange={onOpenChange}>
+      <ModalHeader>Edit {member.name}</ModalHeader>
+      <ModalContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="edit-name">Name *</Label>
@@ -86,14 +72,11 @@ export function EditMemberModal({ open, onOpenChange, member }: EditMemberModalP
 
           <div>
             <Label>Gender</Label>
-            <Select value={gender} onValueChange={(v) => setGender(v as Gender)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect value={gender} onValueChange={(v) => setGender(v as Gender)}>
+              <NativeSelectItem value="male">Male</NativeSelectItem>
+              <NativeSelectItem value="female">Female</NativeSelectItem>
+              <NativeSelectItem value="other">Other</NativeSelectItem>
+            </NativeSelect>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -130,36 +113,23 @@ export function EditMemberModal({ open, onOpenChange, member }: EditMemberModalP
 
           <div className="flex justify-between pt-2">
             {!showDeleteConfirm ? (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
+              <Button type="button" variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)}>
                 <Trash2 className="h-4 w-4 mr-1" /> Delete
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button type="button" variant="destructive" size="sm" onClick={handleDelete}>
-                  Confirm Delete
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowDeleteConfirm(false)}>
-                  Cancel
-                </Button>
+                <Button type="button" variant="destructive" size="sm" onClick={handleDelete}>Confirm Delete</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
               </div>
             )}
 
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-                Save
-              </Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Save</Button>
             </div>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ModalContent>
+    </Modal>
   );
 }
