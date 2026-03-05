@@ -17,7 +17,7 @@ export function MobileNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white md:hidden">
-      <div className="flex items-center justify-around py-2">
+      <div className="flex items-center justify-around">
         {navItems.map((item) => {
           const active = pathname === item.href;
           return (
@@ -25,7 +25,7 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center gap-0.5 px-3 py-1 text-xs rounded-lg transition-colors',
+                'flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[56px] px-3 py-2 text-[11px] rounded-lg transition-colors',
                 active ? 'text-indigo-600' : 'text-gray-500'
               )}
             >

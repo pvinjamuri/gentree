@@ -118,7 +118,7 @@ export function AddMemberModal({
             </NativeSelect>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="dob">Date of Birth</Label>
               <Input id="dob" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
@@ -129,7 +129,7 @@ export function AddMemberModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="phone">Phone</Label>
               <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91-..." />
@@ -152,7 +152,7 @@ export function AddMemberModal({
 
           <div className="border-t pt-4">
             <Label>Relationship</Label>
-            <div className="grid grid-cols-2 gap-3 mt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
               <NativeSelect value={relationType} onValueChange={(v) => setRelationType(v as RelationshipType)}>
                 <NativeSelectItem value="parent">Child of</NativeSelectItem>
                 <NativeSelectItem value="spouse">Spouse of</NativeSelectItem>

@@ -14,7 +14,7 @@ export default function LandingPage() {
       <SearchBar />
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto text-center px-4 pt-16 pb-20">
+      <section className="max-w-4xl mx-auto text-center px-4 pt-10 pb-14 sm:pt-16 sm:pb-20">
         <div className="inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 rounded-full px-4 py-1.5 text-sm font-medium mb-6">
           <TreePine className="h-4 w-4" />
           Family genealogy made simple
@@ -46,7 +46,7 @@ export default function LandingPage() {
 
       {/* Features */}
       <section className="max-w-5xl mx-auto px-4 pb-20">
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           <FeatureCard
             icon={<TreePine className="h-8 w-8 text-indigo-600" />}
             title="Interactive Family Tree"
@@ -81,8 +81,8 @@ export default function LandingPage() {
       </section>
 
       {/* Stats */}
-      <section className="bg-indigo-600 py-12">
-        <div className="max-w-4xl mx-auto px-4 grid grid-cols-3 gap-8 text-center text-white">
+      <section className="bg-indigo-600 py-10 sm:py-12">
+        <div className="max-w-4xl mx-auto px-4 grid grid-cols-3 gap-4 sm:gap-8 text-center text-white">
           <div>
             <p className="text-3xl font-bold">20+</p>
             <p className="text-indigo-200 text-sm">Family Members</p>

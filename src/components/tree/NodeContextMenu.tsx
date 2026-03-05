@@ -34,10 +34,16 @@ export function NodeContextMenu({ x, y, member, onClose }: NodeContextMenuProps)
   }, [onClose]);
 
   // Adjust position so menu doesn't overflow viewport
+  const menuW = 200;
+  const menuH = 220;
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 400;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const adjustedX = Math.min(x, vw - menuW - 8);
+  const adjustedY = Math.min(y, vh - menuH - 8);
   const menuStyle: React.CSSProperties = {
     position: 'fixed',
-    left: x,
-    top: y,
+    left: Math.max(8, adjustedX),
+    top: Math.max(8, adjustedY),
     zIndex: 100,
   };
 
@@ -46,7 +52,7 @@ export function NodeContextMenu({ x, y, member, onClose }: NodeContextMenuProps)
       <div ref={menuRef} style={menuStyle}>
         <div className="bg-white rounded-lg shadow-xl border py-1 min-w-[180px] animate-in fade-in zoom-in-95 duration-100">
           <button
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
             onClick={() => {
               router.push(`/member/${member.id}`);
               onClose();
@@ -57,7 +63,7 @@ export function NodeContextMenu({ x, y, member, onClose }: NodeContextMenuProps)
           </button>
 
           <button
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
             onClick={() => {
               setShowEdit(true);
               onClose();
@@ -70,7 +76,7 @@ export function NodeContextMenu({ x, y, member, onClose }: NodeContextMenuProps)
           <div className="h-px bg-gray-100 my-1" />
 
           <button
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
             onClick={() => {
               setShowAddChild(true);
               onClose();
@@ -82,7 +88,7 @@ export function NodeContextMenu({ x, y, member, onClose }: NodeContextMenuProps)
 
           {!spouse && (
             <button
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
               onClick={() => {
                 setShowAddSpouse(true);
                 onClose();
@@ -94,7 +100,7 @@ export function NodeContextMenu({ x, y, member, onClose }: NodeContextMenuProps)
           )}
 
           <button
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
             onClick={() => {
               onClose();
               // Scroll to sibling add - use the add modal with sibling type

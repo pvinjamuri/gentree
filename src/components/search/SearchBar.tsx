@@ -51,9 +51,9 @@ export function SearchBar() {
       <div className="absolute inset-0 bg-black/50" />
 
       {/* Dialog */}
-      <div className="relative flex justify-center pt-[15vh] px-4">
+      <div className="relative flex justify-center pt-[8vh] sm:pt-[15vh] px-3 sm:px-4">
         <div
-          className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden"
+          className="bg-white rounded-xl shadow-2xl w-full max-w-sm sm:max-w-lg overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Search input */}

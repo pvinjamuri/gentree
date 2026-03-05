@@ -41,13 +41,13 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <Label className="text-xs">Gender</Label>
           <NativeSelect
             value={filters.gender || 'all'}
             onValueChange={(v) => update({ gender: v === 'all' ? undefined : v })}
-            className="h-8 text-xs"
+            className="h-10 text-sm"
           >
             <NativeSelectItem value="all">All</NativeSelectItem>
             <NativeSelectItem value="male">Male</NativeSelectItem>
@@ -59,7 +59,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
           <Label className="text-xs">Min Age</Label>
           <Input
             type="number"
-            className="h-8 text-xs"
+            className="h-10 text-sm"
             value={filters.minAge ?? ''}
             onChange={(e) => update({ minAge: e.target.value ? parseInt(e.target.value) : undefined })}
             placeholder="0"
@@ -70,7 +70,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
           <Label className="text-xs">Max Age</Label>
           <Input
             type="number"
-            className="h-8 text-xs"
+            className="h-10 text-sm"
             value={filters.maxAge ?? ''}
             onChange={(e) => update({ maxAge: e.target.value ? parseInt(e.target.value) : undefined })}
             placeholder="100"
@@ -80,7 +80,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
         <div>
           <Label className="text-xs">Location</Label>
           <Input
-            className="h-8 text-xs"
+            className="h-10 text-sm"
             value={filters.location || ''}
             onChange={(e) => update({ location: e.target.value || undefined })}
             placeholder="City..."
@@ -92,7 +92,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
           <NativeSelect
             value={filters.generation?.toString() || 'all'}
             onValueChange={(v) => update({ generation: v === 'all' ? undefined : parseInt(v) })}
-            className="h-8 text-xs"
+            className="h-10 text-sm"
           >
             <NativeSelectItem value="all">All</NativeSelectItem>
             <NativeSelectItem value="0">Great-Grandparents</NativeSelectItem>
@@ -107,7 +107,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
           <NativeSelect
             value={filters.isAlive === undefined ? 'all' : filters.isAlive ? 'alive' : 'deceased'}
             onValueChange={(v) => update({ isAlive: v === 'all' ? undefined : v === 'alive' })}
-            className="h-8 text-xs"
+            className="h-10 text-sm"
           >
             <NativeSelectItem value="all">All</NativeSelectItem>
             <NativeSelectItem value="alive">Living</NativeSelectItem>
@@ -119,7 +119,7 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
           <Button
             variant={filters.upcomingBirthdays ? 'default' : 'outline'}
             size="sm"
-            className="h-8 text-xs w-full"
+            className="h-10 text-sm w-full"
             onClick={() => update({ upcomingBirthdays: !filters.upcomingBirthdays })}
           >
             Upcoming Birthdays

@@ -40,15 +40,15 @@ export function Modal({ open, onOpenChange, children, className }: ModalProps) {
       <div className="absolute inset-0 bg-black/50" />
       <div
         className={cn(
-          'relative bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150',
+          'relative bg-white rounded-xl shadow-2xl w-full max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150',
           className
         )}
       >
         <button
           onClick={() => onOpenChange(false)}
-          className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 z-10"
+          className="absolute right-2 top-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 z-10"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5" />
         </button>
         {children}
       </div>

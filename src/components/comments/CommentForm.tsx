@@ -34,15 +34,15 @@ export function CommentForm({ memberId }: { memberId: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 border rounded-lg p-3 bg-gray-50">
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <Input
           placeholder="Your name"
           value={authorName}
           onChange={(e) => setAuthorName(e.target.value)}
-          className="flex-1 bg-white"
+          className="flex-1 bg-white h-10"
           required
         />
-        <NativeSelect value={type} onValueChange={(v) => setType(v as CommentType)} className="w-32 bg-white">
+        <NativeSelect value={type} onValueChange={(v) => setType(v as CommentType)} className="w-full sm:w-32 bg-white h-10">
           <NativeSelectItem value="general">General</NativeSelectItem>
           <NativeSelectItem value="birthday">Birthday</NativeSelectItem>
           <NativeSelectItem value="condolence">Condolence</NativeSelectItem>
@@ -58,7 +58,7 @@ export function CommentForm({ memberId }: { memberId: string }) {
           className="bg-white"
           required
         />
-        <Button type="submit" size="icon" className="bg-indigo-600 hover:bg-indigo-700 self-end">
+        <Button type="submit" size="icon" className="bg-indigo-600 hover:bg-indigo-700 self-end min-h-[44px] min-w-[44px]">
           <Send className="h-4 w-4" />
         </Button>
       </div>

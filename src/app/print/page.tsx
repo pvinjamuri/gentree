@@ -31,7 +31,7 @@ export default function PrintPage() {
         </div>
 
         {/* Poster preview */}
-        <div className="border rounded-lg bg-white shadow-sm overflow-auto">
+        <div className="border rounded-lg bg-white shadow-sm overflow-auto max-h-[60vh]">
           <PosterLayout
             ref={posterRef}
             members={members}

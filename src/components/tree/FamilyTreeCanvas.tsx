@@ -201,6 +201,8 @@ export function FamilyTreeCanvas() {
     });
   }, [contentWidth, contentHeight, bounds.minX, bounds.minY]);
 
+  const lastTouchDist = useRef(0);
+
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     setDragging(true);
@@ -223,6 +225,41 @@ export function FamilyTreeCanvas() {
     setZoom((z) => Math.max(0.1, Math.min(3, z * delta)));
   }, []);
 
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setDragging(true);
+      dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX: pan.x, panY: pan.y };
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist.current = Math.sqrt(dx * dx + dy * dy);
+    }
+  }, [pan]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length === 1 && dragging) {
+      setPan({
+        x: dragStart.current.panX + (e.touches[0].clientX - dragStart.current.x),
+        y: dragStart.current.panY + (e.touches[0].clientY - dragStart.current.y),
+      });
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (lastTouchDist.current > 0) {
+        const scale = dist / lastTouchDist.current;
+        setZoom((z) => Math.max(0.1, Math.min(3, z * scale)));
+      }
+      lastTouchDist.current = dist;
+    }
+  }, [dragging]);
+
+  const onTouchEnd = useCallback(() => {
+    setDragging(false);
+    lastTouchDist.current = 0;
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -231,8 +268,11 @@ export function FamilyTreeCanvas() {
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
       onWheel={onWheel}
-      style={{ cursor: dragging ? 'grabbing' : 'grab' }}
+      style={{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
     >
       {/* Background dots */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
@@ -297,14 +337,14 @@ export function FamilyTreeCanvas() {
       </div>
 
       {/* Controls */}
-      <div className="absolute bottom-20 left-4 md:bottom-4 z-10 flex flex-col gap-1">
-        <Button variant="outline" size="icon" className="bg-white shadow-sm h-8 w-8" onClick={() => setZoom((z) => Math.min(3, z * 1.2))}>
+      <div className="absolute bottom-[72px] left-3 md:bottom-4 z-10 flex flex-col gap-1.5">
+        <Button variant="outline" size="icon" className="bg-white shadow-md h-10 w-10" onClick={() => setZoom((z) => Math.min(3, z * 1.2))}>
           <ZoomIn className="h-4 w-4" />
         </Button>
-        <Button variant="outline" size="icon" className="bg-white shadow-sm h-8 w-8" onClick={() => setZoom((z) => Math.max(0.1, z * 0.8))}>
+        <Button variant="outline" size="icon" className="bg-white shadow-md h-10 w-10" onClick={() => setZoom((z) => Math.max(0.1, z * 0.8))}>
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <Button variant="outline" size="icon" className="bg-white shadow-sm h-8 w-8" onClick={fitView}>
+        <Button variant="outline" size="icon" className="bg-white shadow-md h-10 w-10" onClick={fitView}>
           <Maximize className="h-4 w-4" />
         </Button>
       </div>

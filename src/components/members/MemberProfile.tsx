@@ -63,7 +63,7 @@ export function MemberProfile({ member }: MemberProfileProps) {
             )}
           </div>
 
-          <div className="flex justify-center gap-2 mt-4">
+          <div className="flex flex-wrap justify-center gap-2 mt-4">
             <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
               <Edit2 className="h-4 w-4 mr-1" /> Edit
             </Button>

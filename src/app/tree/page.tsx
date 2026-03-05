@@ -12,7 +12,7 @@ export default function TreePage() {
       <Header />
       <SearchBar />
 
-      <div className="flex-1 relative">
+      <div className="flex-1 min-h-0 relative">
         <FamilyTreeCanvas />
         <TreeControls />
       </div>

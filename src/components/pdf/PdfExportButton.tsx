@@ -33,8 +33,8 @@ export function PdfExportButton({ targetRef, familyName = 'Sharma' }: PdfExportB
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <NativeSelect value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)} className="w-28">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <NativeSelect value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)} className="w-full sm:w-28">
           <NativeSelectItem value="a4">A4</NativeSelectItem>
           <NativeSelectItem value="a3">A3</NativeSelectItem>
           <NativeSelectItem value="letter">Letter</NativeSelectItem>

@@ -81,7 +81,7 @@ export function EditMemberModal({ open, onOpenChange, member }: EditMemberModalP
             </NativeSelect>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="edit-dob">Date of Birth</Label>
               <Input id="edit-dob" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
@@ -92,7 +92,7 @@ export function EditMemberModal({ open, onOpenChange, member }: EditMemberModalP
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="edit-phone">Phone</Label>
               <Input id="edit-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
