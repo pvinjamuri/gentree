@@ -93,6 +93,7 @@ export const useFamilyStore = create<FamilyStore>()(
     }),
     {
       name: 'gentree-family-storage',
+      skipHydration: true,
     }
   )
 );
