@@ -49,6 +49,8 @@ function rowToMember(row: Record<string, unknown>) {
     bio: row.bio || undefined,
     generation: row.generation,
     maidenName: row.maiden_name || undefined,
+    nameTe: row.name_te || undefined,
+    nameOr: row.name_or || undefined,
   };
 }
 

@@ -344,6 +344,13 @@ function tl(text) {
   if (currentLang === 'or') return transliterate(text, orMap);
   return text;
 }
+// Get member name in current language — uses stored name if available, else transliteration
+function tlName(member) {
+  if (!member) return '';
+  if (currentLang === 'te' && member.nameTe) return member.nameTe;
+  if (currentLang === 'or' && member.nameOr) return member.nameOr;
+  return tl(member.name);
+}
 
 // ---- Helpers ----
 function getYear(dateStr) {
@@ -609,7 +616,7 @@ function renderMemberCard(member, slug) {
     className: 'block bg-white rounded-xl border-2 shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow ' + (deceased ? 'border-gray-400 opacity-80' : genderColor),
     style: { textDecoration: 'none', color: 'inherit' }
   },
-    h('p', { className: 'font-semibold text-sm text-gray-900' }, tl(member.name)),
+    h('p', { className: 'font-semibold text-sm text-gray-900' }, tlName(member)),
     member.dateOfBirth ? h('p', { className: 'text-xs text-gray-500' }, t('born') + ' ' + getYear(member.dateOfBirth) + (member.dateOfDeath ? ' – ' + t('died') + ' ' + getYear(member.dateOfDeath) : '')) : null,
     member.location ? h('p', { className: 'text-xs text-gray-400 mt-0.5' }, icons.mapPin(12), ' ' + tl(member.location)) : null
   );
@@ -618,7 +625,7 @@ function renderMemberCard(member, slug) {
 function renderLeafNode(member, slug) {
   const cls = 'tree-leaf' + (member.gender === 'male' ? ' male' : member.gender === 'female' ? ' female' : '') + (member.dateOfDeath ? ' deceased' : '');
   return h('a', { href: '/tree/' + slug + '/member/' + member.id, className: cls },
-    h('div', { className: 'leaf-name' }, tl(member.name)),
+    h('div', { className: 'leaf-name' }, tlName(member)),
     member.dateOfBirth ? h('div', { className: 'leaf-meta' }, t('born') + ' ' + getYear(member.dateOfBirth) + (member.dateOfDeath ? ' – ' + t('died') + ' ' + getYear(member.dateOfDeath) : '')) : null,
     member.location ? h('div', { className: 'leaf-meta' }, tl(member.location)) : null
   );
@@ -937,7 +944,7 @@ function renderMemberView(slug, memberId) {
       onClick: () => guardEdit(slug, () => removeRel(rels[0], m.name, sectionType))
     }, icons.trash(12)) : null;
     return h('div', { className: 'flex items-center gap-1' },
-      h('a', { href: '/tree/' + slug + '/member/' + m.id, className: 'flex-1 flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 text-sm font-medium', style: { textDecoration: 'none', color: 'inherit' } }, tl(m.name)),
+      h('a', { href: '/tree/' + slug + '/member/' + m.id, className: 'flex-1 flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 text-sm font-medium', style: { textDecoration: 'none', color: 'inherit' } }, tlName(m)),
       trashBtn
     );
   }
@@ -960,7 +967,7 @@ function renderMemberView(slug, memberId) {
     h('div', { className: 'max-w-2xl mx-auto px-4 py-6 space-y-6' },
       h('a', { href: '/tree/' + slug, className: 'text-sm text-gray-500 hover:text-gray-700', style: { textDecoration: 'none' } }, t('backToTree')),
       h('div', { className: 'bg-white rounded-xl border p-6 text-center' },
-        h('h1', { className: 'text-2xl font-bold' }, tl(member.name)),
+        h('h1', { className: 'text-2xl font-bold' }, tlName(member)),
         member.maidenName ? h('p', { className: 'text-sm text-gray-500' }, 'née ' + member.maidenName) : null,
         member.dateOfBirth ? h('p', { className: 'text-sm text-gray-500' }, t('born') + ' ' + getYear(member.dateOfBirth) + (member.dateOfDeath ? ' – ' + t('died') + ' ' + getYear(member.dateOfDeath) : '')) : null,
         member.location ? h('p', { className: 'text-sm text-gray-500 mt-1' }, icons.mapPin(12), ' ' + tl(member.location)) : null,
@@ -1468,8 +1475,10 @@ function showAddMemberModal(slug, relatedId, relType) {
 function showEditMemberModal(slug, member) {
   const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
     h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 max-h-[80vh] overflow-y-auto', onClick: e => e.stopPropagation() },
-      h('h2', { className: 'text-lg font-bold' }, t('edit') + ' ' + tl(member.name)),
-      h('input', { id: 'edit-name', type: 'text', value: member.name, className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('h2', { className: 'text-lg font-bold' }, t('edit') + ' ' + tlName(member)),
+      h('input', { id: 'edit-name', type: 'text', value: member.name, className: 'w-full h-10 px-3 border rounded-lg text-sm', placeholder: t('fullName') }),
+      h('input', { id: 'edit-name-te', type: 'text', value: member.nameTe || '', placeholder: 'తెలుగు పేరు (Telugu name)', className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'edit-name-or', type: 'text', value: member.nameOr || '', placeholder: 'ଓଡ଼ିଆ ନାମ (Odia name)', className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
       h('input', { id: 'edit-yob', type: 'number', min: '1900', max: '2030', value: member.dateOfBirth ? getYear(member.dateOfBirth) : '', placeholder: t('yearOfBirth'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
       h('input', { id: 'edit-yod', type: 'number', min: '1900', max: '2030', value: member.dateOfDeath ? getYear(member.dateOfDeath) : '', placeholder: t('yearOfDeath'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
       h('input', { id: 'edit-location', type: 'text', value: member.location || '', placeholder: t('location'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
@@ -1483,6 +1492,8 @@ function showEditMemberModal(slug, member) {
           try {
             const updates = {
               name: $('edit-name').value.trim(),
+              nameTe: $('edit-name-te').value.trim() || null,
+              nameOr: $('edit-name-or').value.trim() || null,
               dateOfBirth: $('edit-yob').value ? $('edit-yob').value + '-01-01' : null,
               dateOfDeath: $('edit-yod').value ? $('edit-yod').value + '-01-01' : null,
               location: $('edit-location').value || null,

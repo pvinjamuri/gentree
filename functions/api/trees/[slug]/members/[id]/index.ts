@@ -26,7 +26,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ params, request, env })
     dateOfDeath: 'date_of_death', facebookUrl: 'facebook_url',
     phone: 'phone', email: 'email', location: 'location',
     bio: 'bio', generation: 'generation', maidenName: 'maiden_name',
-    photoUrl: 'photo_url',
+    photoUrl: 'photo_url', nameTe: 'name_te', nameOr: 'name_or',
   };
 
   const sets: string[] = [];

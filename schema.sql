@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS members (
   bio           TEXT,
   generation    INTEGER NOT NULL DEFAULT 0,
   maiden_name   TEXT,
+  name_te       TEXT,
+  name_or       TEXT,
   created_at    TEXT DEFAULT (datetime('now'))
 );
 
