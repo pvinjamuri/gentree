@@ -171,6 +171,7 @@ const translations = {
     linkToTree: 'Link to another tree', alsoIn: 'Also in', enterTreeSlug: 'Enter tree slug (e.g. sharma-482)',
     fetchingTree: 'Fetching tree...', selectMember: 'Select member from that tree',
     syncFromLinked: 'Sync info', synced: 'Synced!', unlinkTree: 'Unlink',
+    copyLink: 'Copy link', copyMessage: 'Copy message with link',
   },
   te: {
     tree: 'వృక్షం', search: 'వెతుకు', print: 'ముద్రించు', editing: 'సవరిస్తున్నారు', edit: 'సవరించు',
@@ -201,6 +202,7 @@ const translations = {
     linkToTree: 'మరొక వృక్షానికి లింక్', alsoIn: 'ఇందులో కూడా', enterTreeSlug: 'ట్రీ స్లగ్ నమోదు చేయండి',
     fetchingTree: 'ట్రీ తెస్తున్నాము...', selectMember: 'ఆ ట్రీ నుండి సభ్యుడిని ఎంచుకోండి',
     syncFromLinked: 'సమాచారం సింక్', synced: 'సింక్ అయింది!', unlinkTree: 'అన్‌లింక్',
+    copyLink: 'లింక్ కాపీ చేయండి', copyMessage: 'లింక్‌తో సందేశం కాపీ చేయండి',
   },
   or: {
     tree: 'ବୃକ୍ଷ', search: 'ଖୋଜ', print: 'ଛାପ', editing: 'ସଂପାଦନା', edit: 'ସଂପାଦନ',
@@ -231,6 +233,7 @@ const translations = {
     linkToTree: 'ଅନ୍ୟ ବୃକ୍ଷକୁ ଲିଙ୍କ', alsoIn: 'ମଧ୍ୟ ଅଛନ୍ତି', enterTreeSlug: 'ବୃକ୍ଷ ସ୍ଲଗ ପ୍ରବେଶ କରନ୍ତୁ',
     fetchingTree: 'ବୃକ୍ଷ ଆଣୁଛି...', selectMember: 'ସେହି ବୃକ୍ଷରୁ ସଦସ୍ୟ ବାଛନ୍ତୁ',
     syncFromLinked: 'ସୂଚନା ସିଙ୍କ', synced: 'ସିଙ୍କ ହୋଇଗଲା!', unlinkTree: 'ଅନଲିଙ୍କ',
+    copyLink: 'ଲିଙ୍କ କପି', copyMessage: 'ଲିଙ୍କ ସହ ସନ୍ଦେଶ କପି',
   }
 };
 
@@ -500,7 +503,20 @@ function renderHeader(slug) {
   const tree = state.tree || {};
   const name = tl(tree.name) || t('familyTree');
   const hasInfo = tree.origin || tree.description || tree.creatorEmail;
-  const shareUrl = 'https://wa.me/?text=' + encodeURIComponent(name + ' ' + t('familyTree') + ' ' + window.location.origin + '/tree/' + slug);
+  const treeUrl = window.location.origin + '/tree/' + slug;
+  const shareText = name + ' ' + t('familyTree');
+  const shareMsg = shareText + '\n' + treeUrl;
+  const whatsappUrl = 'https://wa.me/?text=' + encodeURIComponent(shareMsg);
+
+  function doShare() {
+    // Try native Web Share API first (works great on mobile)
+    if (navigator.share) {
+      navigator.share({ title: shareText, text: shareText, url: treeUrl }).catch(() => {});
+      return;
+    }
+    // Fallback: show share menu
+    showShareMenu(shareText, treeUrl, whatsappUrl);
+  }
 
   const langSelect = h('select', {
     className: 'text-sm bg-transparent border rounded-lg px-2 py-1 cursor-pointer',
@@ -521,13 +537,14 @@ function renderHeader(slug) {
     ? h('button', { className: 'text-sm px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-200 flex items-center gap-1', onClick: () => { sessionStorage.removeItem('gentree-edit-token'); state.editMode = false; render(); } }, icons.unlock(14), ' ' + t('editing'))
     : h('button', { className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1', onClick: () => showPinModal(slug) }, icons.lock(14), ' ' + t('edit'));
 
-  const shareLink = h('a', { href: shareUrl, target: '_blank', className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1', style: { textDecoration: 'none', color: 'inherit' } }, icons.share(14), ' ' + t('share'));
+  const shareLink = h('button', { className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1', onClick: doShare }, icons.share(14), ' ' + t('share'));
 
   // Mobile menu (hidden by default)
+  const mobileShareBtn = h('button', { className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1 w-full', onClick: doShare }, icons.share(14), ' ' + t('share'));
   const mobileMenu = h('div', { className: 'mobile-menu' },
     navLink('/tree/' + slug + '/search', t('search')),
     navLink('/tree/' + slug + '/print', t('print')),
-    shareLink.cloneNode(true),
+    mobileShareBtn,
     h('div', { className: 'flex items-center gap-2 px-3 py-1.5' }, icons.globe(14), langSelect.cloneNode(true)),
     editBtn.cloneNode(true)
   );
@@ -540,9 +557,6 @@ function renderHeader(slug) {
     } else if (btn.textContent.includes(t('edit'))) {
       btn.addEventListener('click', () => showPinModal(slug));
     }
-  });
-  mobileMenu.querySelectorAll('a[target="_blank"]').forEach(a => {
-    a.href = shareUrl;
   });
 
   const hamburgerBtn = h('button', { className: 'nav-hamburger p-2 rounded-lg hover:bg-gray-100', onClick: () => {
@@ -917,7 +931,7 @@ function renderMemberView(slug, memberId) {
 
   function memberLink(m, sectionType) {
     const rels = findRelationships(m.id, sectionType);
-    const trashBtn = rels.length > 0 ? h('button', {
+    const trashBtn = rels.length > 0 && sectionType !== 'sibling' ? h('button', {
       className: 'text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50',
       title: t('removeRelationship'),
       onClick: () => guardEdit(slug, () => removeRel(rels[0], m.name, sectionType))
@@ -1221,6 +1235,42 @@ function showTreeInfoModal(slug) {
         }}, t('save')),
         h('button', { className: 'flex-1 border py-2 rounded-lg hover:bg-gray-50', onClick: () => overlay.remove() }, t('cancel'))
       )
+    )
+  );
+  document.body.appendChild(overlay);
+}
+
+function showShareMenu(shareText, treeUrl, whatsappUrl) {
+  const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
+    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-xs mx-4 space-y-3', onClick: e => e.stopPropagation() },
+      h('h2', { className: 'text-lg font-bold flex items-center gap-2' }, icons.share(18), ' ' + t('share')),
+      // Copy link
+      h('button', { className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-gray-50 flex items-center gap-2', onClick: () => {
+        navigator.clipboard.writeText(treeUrl).then(() => {
+          overlay.remove();
+          // Show brief toast
+          const toast = h('div', { className: 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg' }, icons.check(14), ' ' + t('linkCopied'));
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 2000);
+        });
+      }}, icons.link(16), ' ' + t('copyLink')),
+      // Copy message (text + URL)
+      h('button', { className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-gray-50 flex items-center gap-2', onClick: () => {
+        navigator.clipboard.writeText(shareText + '\n' + treeUrl).then(() => {
+          overlay.remove();
+          const toast = h('div', { className: 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg' }, icons.check(14), ' ' + t('linkCopied'));
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 2000);
+        });
+      }}, icons.mail(16), ' ' + t('copyMessage')),
+      // WhatsApp
+      h('a', { href: whatsappUrl, target: '_blank', className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-green-50 flex items-center gap-2', style: { textDecoration: 'none', color: 'inherit' }, onClick: () => overlay.remove() },
+        h('span', { style: { color: '#25D366', fontWeight: 'bold' } }, 'W'), ' WhatsApp'),
+      // Email
+      h('a', { href: 'mailto:?subject=' + encodeURIComponent(shareText) + '&body=' + encodeURIComponent(shareText + '\n' + treeUrl), className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-gray-50 flex items-center gap-2', style: { textDecoration: 'none', color: 'inherit' }, onClick: () => overlay.remove() },
+        icons.mail(16), ' ' + t('email')),
+      // Cancel
+      h('button', { className: 'w-full text-sm text-gray-500 py-2', onClick: () => overlay.remove() }, t('cancel'))
     )
   );
   document.body.appendChild(overlay);
