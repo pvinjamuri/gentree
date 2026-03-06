@@ -11,12 +11,21 @@ export interface FamilyMember {
   dateOfBirth?: string; // ISO date string
   dateOfDeath?: string;
   photo?: string;
+  photoUrl?: string;
+  facebookUrl?: string;
   phone?: string;
   email?: string;
   location?: string;
   bio?: string;
   generation: number;
   maidenName?: string;
+}
+
+export interface Tree {
+  id: string;
+  slug: string;
+  name: string;
+  createdAt?: string;
 }
 
 export interface Relationship {

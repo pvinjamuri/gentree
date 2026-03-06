@@ -28,17 +28,17 @@ export default function LandingPage() {
           relatives via WhatsApp to grow your tree together.
         </p>
         <div className="flex flex-wrap justify-center gap-3 mt-8">
-          <Link href="/tree">
+          <Link href="/start">
             <Button size="lg" className="bg-indigo-600 hover:bg-indigo-700 gap-2">
               <TreePine className="h-5 w-5" />
-              View Family Tree
+              Start Your Family Tree
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <Link href="/print">
+          <Link href="/tree">
             <Button size="lg" variant="outline" className="gap-2">
-              <Download className="h-5 w-5" />
-              Print as Poster
+              <TreePine className="h-5 w-5" />
+              View Demo Tree
             </Button>
           </Link>
         </div>
@@ -101,8 +101,8 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="max-w-2xl mx-auto text-center px-4 py-16">
         <h2 className="text-2xl font-bold">Ready to map your family?</h2>
-        <p className="text-gray-600 mt-2">Start with the Sharma family demo or add your own members.</p>
-        <Link href="/tree">
+        <p className="text-gray-600 mt-2">Create your own tree or explore the demo.</p>
+        <Link href="/start">
           <Button size="lg" className="mt-6 bg-indigo-600 hover:bg-indigo-700 gap-2">
             Get Started <ArrowRight className="h-4 w-4" />
           </Button>

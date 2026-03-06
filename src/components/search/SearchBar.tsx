@@ -7,7 +7,7 @@ import { MemberAvatar } from '@/components/members/MemberAvatar';
 import { getLifeSpan } from '@/lib/date-utils';
 import { Search, X } from 'lucide-react';
 
-export function SearchBar() {
+export function SearchBar({ slugPrefix }: { slugPrefix?: string } = {}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const members = useFamilyStore((s) => s.members);
@@ -82,7 +82,7 @@ export function SearchBar() {
                   key={member.id}
                   className="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-50 transition-colors text-left"
                   onClick={() => {
-                    router.push(`/member/${member.id}`);
+                    router.push(slugPrefix ? `${slugPrefix}/member/${member.id}` : `/member/${member.id}`);
                     setOpen(false);
                   }}
                 >

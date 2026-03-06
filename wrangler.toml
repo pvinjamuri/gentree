@@ -1,0 +1,16 @@
+name = "gentree"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "out"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gentree-db"
+database_id = "52a74af7-be7a-40b6-8a9d-318e1a273657"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "gentree-photos"
+
+[vars]
+# HMAC secret for signing edit tokens — override in Cloudflare dashboard for production
+HMAC_SECRET = "dev-secret-change-in-production"
