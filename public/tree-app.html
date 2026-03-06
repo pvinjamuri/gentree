@@ -168,6 +168,9 @@ const translations = {
     removeRelationship: 'Remove', removeRelConfirm: 'Remove {type} relationship with {name}?',
     collapse: 'Collapse', expand: 'Expand',
     linkExisting: 'Link existing member', orCreateNew: 'or type a new name',
+    linkToTree: 'Link to another tree', alsoIn: 'Also in', enterTreeSlug: 'Enter tree slug (e.g. sharma-482)',
+    fetchingTree: 'Fetching tree...', selectMember: 'Select member from that tree',
+    syncFromLinked: 'Sync info', synced: 'Synced!', unlinkTree: 'Unlink',
   },
   te: {
     tree: 'వృక్షం', search: 'వెతుకు', print: 'ముద్రించు', editing: 'సవరిస్తున్నారు', edit: 'సవరించు',
@@ -195,6 +198,9 @@ const translations = {
     removeRelationship: 'తొలగించు', removeRelConfirm: '{name}తో {type} సంబంధాన్ని తొలగించాలా?',
     collapse: 'కుదించు', expand: 'విస్తరించు',
     linkExisting: 'ఇప్పటికే ఉన్న సభ్యుడిని లింక్ చేయండి', orCreateNew: 'లేదా కొత్త పేరు టైప్ చేయండి',
+    linkToTree: 'మరొక వృక్షానికి లింక్', alsoIn: 'ఇందులో కూడా', enterTreeSlug: 'ట్రీ స్లగ్ నమోదు చేయండి',
+    fetchingTree: 'ట్రీ తెస్తున్నాము...', selectMember: 'ఆ ట్రీ నుండి సభ్యుడిని ఎంచుకోండి',
+    syncFromLinked: 'సమాచారం సింక్', synced: 'సింక్ అయింది!', unlinkTree: 'అన్‌లింక్',
   },
   or: {
     tree: 'ବୃକ୍ଷ', search: 'ଖୋଜ', print: 'ଛାପ', editing: 'ସଂପାଦନା', edit: 'ସଂପାଦନ',
@@ -222,6 +228,9 @@ const translations = {
     removeRelationship: 'ହଟାନ୍ତୁ', removeRelConfirm: '{name}ଙ୍କ ସହ {type} ସଂପର୍କ ହଟାଇବେ?',
     collapse: 'ସଙ୍କୁଚିତ', expand: 'ବିସ୍ତାର',
     linkExisting: 'ବିଦ୍ୟମାନ ସଦସ୍ୟଙ୍କୁ ଲିଙ୍କ କରନ୍ତୁ', orCreateNew: 'କିମ୍ବା ନୂଆ ନାମ ଟାଇପ କରନ୍ତୁ',
+    linkToTree: 'ଅନ୍ୟ ବୃକ୍ଷକୁ ଲିଙ୍କ', alsoIn: 'ମଧ୍ୟ ଅଛନ୍ତି', enterTreeSlug: 'ବୃକ୍ଷ ସ୍ଲଗ ପ୍ରବେଶ କରନ୍ତୁ',
+    fetchingTree: 'ବୃକ୍ଷ ଆଣୁଛି...', selectMember: 'ସେହି ବୃକ୍ଷରୁ ସଦସ୍ୟ ବାଛନ୍ତୁ',
+    syncFromLinked: 'ସୂଚନା ସିଙ୍କ', synced: 'ସିଙ୍କ ହୋଇଗଲା!', unlinkTree: 'ଅନଲିଙ୍କ',
   }
 };
 
@@ -960,9 +969,180 @@ function renderMemberView(slug, memberId) {
         section(t('children'), children, 'child'),
         section(t('siblings'), siblings, 'sibling'),
         (!spouse && parents.length === 0 && children.length === 0 && siblings.length === 0) ? h('p', { className: 'text-sm text-gray-400' }, t('noConnections')) : null
-      )
+      ),
+      // Linked trees section (loaded async)
+      renderLinkedTrees(slug, memberId)
     )
   );
+}
+
+function renderLinkedTrees(slug, memberId) {
+  const container = h('div', { className: 'bg-white rounded-xl border p-6 space-y-4' });
+
+  // Load links async
+  apiGet('/trees/' + slug + '/members/' + memberId + '/links').then(data => {
+    const links = data.links || [];
+    container.innerHTML = '';
+
+    const header = h('div', { className: 'flex items-center justify-between' },
+      h('h2', { className: 'font-semibold flex items-center gap-2' }, icons.link(16), ' ' + t('linkToTree')),
+      h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showLinkToTreeModal(slug, memberId)) }, '+ ' + t('linkToTree'))
+    );
+    container.appendChild(header);
+
+    if (links.length === 0) {
+      container.appendChild(h('p', { className: 'text-sm text-gray-400' }, t('noConnections')));
+    } else {
+      links.forEach(link => {
+        const row = h('div', { className: 'flex items-center justify-between p-2 rounded-lg hover:bg-gray-50' },
+          h('a', {
+            href: '/tree/' + link.linkedTreeSlug + '/member/' + link.linkedMemberId,
+            className: 'flex-1 text-sm font-medium text-indigo-600 hover:text-indigo-800',
+            style: { textDecoration: 'none' }
+          }, t('alsoIn') + ': ' + link.linkedTreeName + ' →'),
+          h('div', { className: 'flex items-center gap-1' },
+            h('button', {
+              className: 'text-xs text-indigo-500 hover:text-indigo-700 px-2 py-1 rounded hover:bg-indigo-50',
+              title: t('syncFromLinked'),
+              onClick: () => guardEdit(slug, async () => {
+                try {
+                  await apiPost('/trees/' + slug + '/members/' + memberId + '/sync', {
+                    linkedTreeSlug: link.linkedTreeSlug, linkedMemberId: link.linkedMemberId
+                  });
+                  // Reload tree data to reflect synced info
+                  const treeData = await apiGet('/trees/' + slug);
+                  state.members = treeData.members;
+                  render();
+                } catch (e) { alert(e.message); }
+              })
+            }, icons.reset(12), ' ' + t('syncFromLinked')),
+            h('button', {
+              className: 'text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50',
+              title: t('unlinkTree'),
+              onClick: () => guardEdit(slug, async () => {
+                if (!confirm(t('unlinkTree') + ' ' + link.linkedTreeName + '?')) return;
+                try {
+                  await apiDelete('/trees/' + slug + '/members/' + memberId + '/links/' + link.id);
+                  render();
+                } catch (e) { alert(e.message); }
+              })
+            }, icons.trash(12))
+          )
+        );
+        container.appendChild(row);
+      });
+    }
+  }).catch(() => {
+    container.appendChild(h('p', { className: 'text-sm text-gray-400' }, t('noConnections')));
+  });
+
+  return container;
+}
+
+function showLinkToTreeModal(slug, memberId) {
+  let fetchedMembers = [];
+  let selectedMember = null;
+
+  const slugInput = h('input', { type: 'text', placeholder: t('enterTreeSlug'), className: 'w-full h-10 px-3 border rounded-lg text-sm' });
+  const statusEl = h('div', { className: 'text-sm text-gray-500 hidden' });
+  const memberList = h('div', { className: 'typeahead-list', style: { position: 'static', maxHeight: '200px' } });
+  const memberSearch = h('input', { type: 'text', placeholder: t('selectMember'), className: 'w-full h-10 px-3 border rounded-lg text-sm hidden' });
+  const selectedBadge = h('div', { className: 'hidden flex items-center gap-2 text-sm bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg' });
+  const errorEl = h('div', { className: 'text-sm text-red-500 hidden' });
+
+  function updateMemberList() {
+    const q = memberSearch.value.trim().toLowerCase();
+    memberList.innerHTML = '';
+    const matches = q ? fetchedMembers.filter(m => m.name.toLowerCase().includes(q)).slice(0, 8) : fetchedMembers.slice(0, 8);
+    matches.forEach(m => {
+      const meta = [m.dateOfBirth ? 'b.' + getYear(m.dateOfBirth) : '', m.location || ''].filter(Boolean).join(' · ');
+      const item = h('div', { className: 'typeahead-item', onClick: () => {
+        selectedMember = m;
+        memberSearch.classList.add('hidden');
+        memberList.innerHTML = '';
+        selectedBadge.innerHTML = '';
+        selectedBadge.appendChild(document.createTextNode(m.name + (meta ? ' (' + meta + ')' : '')));
+        const clearBtn = h('button', { className: 'text-indigo-500 hover:text-indigo-700 text-xs underline', onClick: () => {
+          selectedMember = null;
+          selectedBadge.classList.add('hidden');
+          memberSearch.classList.remove('hidden');
+          memberSearch.value = '';
+          memberSearch.focus();
+          updateMemberList();
+        }}, t('cancel'));
+        selectedBadge.appendChild(clearBtn);
+        selectedBadge.classList.remove('hidden');
+      }},
+        h('span', null, m.name),
+        meta ? h('span', { className: 'ta-meta' }, meta) : null
+      );
+      memberList.appendChild(item);
+    });
+  }
+
+  memberSearch.addEventListener('input', updateMemberList);
+
+  // Fetch tree on slug input (debounced)
+  let fetchTimer;
+  slugInput.addEventListener('input', () => {
+    clearTimeout(fetchTimer);
+    fetchTimer = setTimeout(async () => {
+      const treeSlug = slugInput.value.trim();
+      if (!treeSlug || treeSlug === slug) return;
+      statusEl.textContent = t('fetchingTree');
+      statusEl.classList.remove('hidden');
+      memberSearch.classList.add('hidden');
+      memberList.innerHTML = '';
+      selectedMember = null;
+      selectedBadge.classList.add('hidden');
+      try {
+        const data = await apiGet('/trees/' + treeSlug);
+        fetchedMembers = data.members || [];
+        statusEl.textContent = data.tree.name + ' — ' + fetchedMembers.length + ' members';
+        memberSearch.classList.remove('hidden');
+        memberSearch.value = '';
+        memberSearch.focus();
+        updateMemberList();
+      } catch (e) {
+        statusEl.textContent = e.message;
+        statusEl.className = 'text-sm text-red-500';
+        fetchedMembers = [];
+      }
+    }, 500);
+  });
+
+  const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
+    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 max-h-[80vh] overflow-y-auto', onClick: e => e.stopPropagation() },
+      h('h2', { className: 'text-lg font-bold flex items-center gap-2' }, icons.link(18), ' ' + t('linkToTree')),
+      h('p', { className: 'text-sm text-gray-500' }, t('enterTreeSlug')),
+      slugInput,
+      statusEl,
+      memberSearch,
+      memberList,
+      selectedBadge,
+      errorEl,
+      h('button', { className: 'w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700', onClick: async () => {
+        if (!selectedMember) {
+          errorEl.textContent = t('selectMember');
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        try {
+          await apiPost('/trees/' + slug + '/members/' + memberId + '/links', {
+            linkedTreeSlug: slugInput.value.trim(),
+            linkedMemberId: selectedMember.id
+          });
+          overlay.remove();
+          render();
+        } catch (e) {
+          errorEl.textContent = e.message;
+          errorEl.classList.remove('hidden');
+        }
+      }}, t('linkToTree'))
+    )
+  );
+  document.body.appendChild(overlay);
+  setTimeout(() => slugInput.focus(), 50);
 }
 
 function renderSearchView(slug) {

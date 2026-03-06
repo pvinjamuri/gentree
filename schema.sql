@@ -48,8 +48,19 @@ CREATE TABLE IF NOT EXISTS comments (
   created_at  TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS member_links (
+  id                TEXT PRIMARY KEY,
+  member_id         TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  tree_id           TEXT NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
+  linked_tree_slug  TEXT NOT NULL,
+  linked_member_id  TEXT NOT NULL,
+  created_at        TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_members_tree ON members(tree_id);
 CREATE INDEX IF NOT EXISTS idx_relationships_tree ON relationships(tree_id);
 CREATE INDEX IF NOT EXISTS idx_comments_member ON comments(member_id);
 CREATE INDEX IF NOT EXISTS idx_trees_slug ON trees(slug);
+CREATE INDEX IF NOT EXISTS idx_member_links_member ON member_links(member_id);
+CREATE INDEX IF NOT EXISTS idx_member_links_linked ON member_links(linked_tree_slug, linked_member_id);
