@@ -904,9 +904,14 @@ function renderMemberView(slug, memberId) {
 
   function section(label, list, sectionType) {
     if (!list || list.length === 0) return null;
+    const sorted = sectionType === 'child' ? [...list].sort((a, b) => {
+      const ya = a.dateOfBirth ? parseInt(a.dateOfBirth) : 9999;
+      const yb = b.dateOfBirth ? parseInt(b.dateOfBirth) : 9999;
+      return ya - yb;
+    }) : list;
     return h('div', null,
       h('p', { className: 'text-xs text-gray-500 uppercase tracking-wide mb-1' }, label),
-      ...list.map(m => memberLink(m, sectionType))
+      ...sorted.map(m => memberLink(m, sectionType))
     );
   }
 
