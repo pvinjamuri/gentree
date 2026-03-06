@@ -9,7 +9,7 @@ interface MemberRow {
   date_of_death: string | null; photo_url: string | null; phone: string | null;
   email: string | null; location: string | null; bio: string | null;
   facebook_url: string | null; maiden_name: string | null; generation: number;
-  tree_id: string; name_te: string | null; name_or: string | null;
+  tree_id: string; name_localized: string | null;
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ params, request, env }) => {
@@ -40,13 +40,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ params, request, env }
     `UPDATE members SET
       name = ?, date_of_birth = ?, date_of_death = ?, photo_url = ?,
       phone = ?, email = ?, location = ?, bio = ?, facebook_url = ?, maiden_name = ?,
-      name_te = ?, name_or = ?
+      name_localized = ?
     WHERE id = ?`
   ).bind(
     linkedMember.name, linkedMember.date_of_birth, linkedMember.date_of_death, linkedMember.photo_url,
     linkedMember.phone, linkedMember.email, linkedMember.location, linkedMember.bio,
     linkedMember.facebook_url, linkedMember.maiden_name,
-    linkedMember.name_te, linkedMember.name_or,
+    linkedMember.name_localized,
     memberId
   ).run();
 
@@ -100,15 +100,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ params, request, env }
     await env.DB.prepare(
       `INSERT INTO members (id, tree_id, name, gender, date_of_birth, date_of_death,
         photo_url, phone, email, location, bio, facebook_url, maiden_name, generation,
-        name_te, name_or)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        name_localized)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       newId, thisTree.id, sourceMember.name, sourceMember.gender,
       sourceMember.date_of_birth, sourceMember.date_of_death,
       sourceMember.photo_url, sourceMember.phone, sourceMember.email,
       sourceMember.location, sourceMember.bio, sourceMember.facebook_url,
       sourceMember.maiden_name, relativeGen,
-      sourceMember.name_te, sourceMember.name_or
+      sourceMember.name_localized
     ).run();
 
     sourceToLocal[sourceId] = newId;

@@ -26,7 +26,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ params, request, env })
     dateOfDeath: 'date_of_death', facebookUrl: 'facebook_url',
     phone: 'phone', email: 'email', location: 'location',
     bio: 'bio', generation: 'generation', maidenName: 'maiden_name',
-    photoUrl: 'photo_url', nameTe: 'name_te', nameOr: 'name_or',
+    photoUrl: 'photo_url', nameLocalized: 'name_localized',
   };
 
   const sets: string[] = [];
@@ -35,7 +35,9 @@ export const onRequestPut: PagesFunction<Env> = async ({ params, request, env })
   for (const [key, col] of Object.entries(allowedFields)) {
     if (key in body) {
       sets.push(`${col} = ?`);
-      values.push(body[key] ?? null);
+      const val = body[key] ?? null;
+      // Stringify JSON fields
+      values.push(key === 'nameLocalized' && val ? JSON.stringify(val) : val);
     }
   }
 

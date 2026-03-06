@@ -432,10 +432,23 @@ function tl(text) {
 // Get member name in current language — uses stored name if available, else transliteration
 function tlName(member) {
   if (!member) return '';
-  if (currentLang === 'te' && member.nameTe) return member.nameTe;
-  if (currentLang === 'or' && member.nameOr) return member.nameOr;
+  const loc = member.nameLocalized;
+  if (loc && loc[currentLang]) return loc[currentLang];
   return tl(member.name);
 }
+// Available languages for localized names
+const langOptions = [
+  { code: 'te', label: 'తెలుగు (Telugu)' },
+  { code: 'or', label: 'ଓଡ଼ିଆ (Odia)' },
+  { code: 'hi', label: 'हिन्दी (Hindi)' },
+  { code: 'kn', label: 'ಕನ್ನಡ (Kannada)' },
+  { code: 'ta', label: 'தமிழ் (Tamil)' },
+  { code: 'ml', label: 'മലയാളം (Malayalam)' },
+  { code: 'bn', label: 'বাংলা (Bengali)' },
+  { code: 'gu', label: 'ગુજરાતી (Gujarati)' },
+  { code: 'mr', label: 'मराठी (Marathi)' },
+  { code: 'pa', label: 'ਪੰਜਾਬੀ (Punjabi)' },
+];
 
 // ---- Helpers ----
 function getYear(dateStr) {
@@ -1779,13 +1792,67 @@ function showAddMemberModal(slug, relatedId, relType) {
   setTimeout(() => nameInput.focus(), 50);
 }
 
+function buildLocalizedNamesUI(existing) {
+  // existing: { te: "తెలుగు పేరు", or: "ଓଡ଼ିଆ ନାମ", ... }
+  const container = h('div', { className: 'space-y-2' });
+  const entries = h('div', { className: 'space-y-2' });
+  container.appendChild(entries);
+
+  // Render existing entries
+  function renderEntries() {
+    entries.innerHTML = '';
+    const usedLangs = new Set();
+    for (const [lang, name] of Object.entries(existing)) {
+      if (!name) continue;
+      usedLangs.add(lang);
+      const langLabel = langOptions.find(l => l.code === lang)?.label || lang;
+      const row = h('div', { className: 'flex items-center gap-2' },
+        h('span', { className: 'text-xs text-gray-500 w-20 shrink-0' }, langLabel.split('(')[0].trim()),
+        h('input', { type: 'text', value: name, className: 'flex-1 h-9 px-3 border rounded-lg text-sm', 'data-lang-name': lang, onChange: (e) => { existing[lang] = e.target.value; } }),
+        h('button', { className: 'text-red-400 hover:text-red-600 p-1', onClick: () => { delete existing[lang]; renderEntries(); } }, icons.trash(12))
+      );
+      entries.appendChild(row);
+    }
+
+    // "Add language" dropdown — only show languages not yet added
+    const available = langOptions.filter(l => !usedLangs.has(l.code));
+    if (available.length > 0) {
+      const addRow = h('div', { className: 'flex items-center gap-2' },
+        h('select', { className: 'text-sm border rounded-lg px-2 py-1.5 bg-white w-20 shrink-0', id: 'add-lang-select' },
+          h('option', { value: '' }, '+ ' + t('language')),
+          ...available.map(l => h('option', { value: l.code }, l.label.split('(')[0].trim()))
+        ),
+        h('input', { id: 'add-lang-input', type: 'text', placeholder: t('fullName'), className: 'flex-1 h-9 px-3 border rounded-lg text-sm hidden' }),
+        h('button', { id: 'add-lang-btn', className: 'text-indigo-600 hover:text-indigo-800 text-sm hidden px-2', onClick: () => {
+          const sel = addRow.querySelector('#add-lang-select');
+          const inp = addRow.querySelector('#add-lang-input');
+          if (sel.value && inp.value.trim()) {
+            existing[sel.value] = inp.value.trim();
+            renderEntries();
+          }
+        }}, icons.check(14))
+      );
+      const sel = addRow.querySelector('select');
+      const inp = addRow.querySelector('#add-lang-input');
+      const btn = addRow.querySelector('#add-lang-btn');
+      sel.addEventListener('change', () => {
+        if (sel.value) { inp.classList.remove('hidden'); btn.classList.remove('hidden'); inp.focus(); }
+        else { inp.classList.add('hidden'); btn.classList.add('hidden'); }
+      });
+      entries.appendChild(addRow);
+    }
+  }
+
+  renderEntries();
+  return container;
+}
+
 function showEditMemberModal(slug, member) {
   const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
     h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 max-h-[80vh] overflow-y-auto', onClick: e => e.stopPropagation() },
       h('h2', { className: 'text-lg font-bold' }, t('edit') + ' ' + tlName(member)),
       h('input', { id: 'edit-name', type: 'text', value: member.name, className: 'w-full h-10 px-3 border rounded-lg text-sm', placeholder: t('fullName') }),
-      h('input', { id: 'edit-name-te', type: 'text', value: member.nameTe || '', placeholder: 'తెలుగు పేరు (Telugu name)', className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
-      h('input', { id: 'edit-name-or', type: 'text', value: member.nameOr || '', placeholder: 'ଓଡ଼ିଆ ନାମ (Odia name)', className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      buildLocalizedNamesUI(member.nameLocalized || {}),
       h('input', { id: 'edit-yob', type: 'number', min: '1900', max: '2030', value: member.dateOfBirth ? getYear(member.dateOfBirth) : '', placeholder: t('yearOfBirth'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
       h('input', { id: 'edit-yod', type: 'number', min: '1900', max: '2030', value: member.dateOfDeath ? getYear(member.dateOfDeath) : '', placeholder: t('yearOfDeath'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
       h('input', { id: 'edit-location', type: 'text', value: member.location || '', placeholder: t('location'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
@@ -1797,10 +1864,16 @@ function showEditMemberModal(slug, member) {
       h('div', { className: 'flex gap-2' },
         h('button', { className: 'flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700', onClick: async () => {
           try {
+            // Collect localized names from dynamic inputs
+            const nameLocalized = {};
+            document.querySelectorAll('[data-lang-name]').forEach(input => {
+              const lang = input.getAttribute('data-lang-name');
+              const val = input.value.trim();
+              if (lang && val) nameLocalized[lang] = val;
+            });
             const updates = {
               name: $('edit-name').value.trim(),
-              nameTe: $('edit-name-te').value.trim() || null,
-              nameOr: $('edit-name-or').value.trim() || null,
+              nameLocalized: Object.keys(nameLocalized).length > 0 ? nameLocalized : null,
               dateOfBirth: $('edit-yob').value ? $('edit-yob').value + '-01-01' : null,
               dateOfDeath: $('edit-yod').value ? $('edit-yod').value + '-01-01' : null,
               location: $('edit-location').value || null,
