@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gentree - Family Tree</title>
+<meta name="description" content="View and edit your family tree on Gentree." />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: { indigo: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca' } }
+    }
+  }
+}
+</script>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .animate-spin { animation: spin 1s linear infinite; }
+  body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+
+  /* Mobile menu */
+  .nav-desktop { display: flex; align-items: center; gap: 0.5rem; }
+  .nav-hamburger { display: none; }
+  .mobile-menu { display: none; }
+  @media (max-width: 640px) {
+    .nav-desktop { display: none; }
+    .nav-hamburger { display: flex; }
+    .mobile-menu.open { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem 1rem 1rem; border-top: 1px solid #e5e7eb; background: white; }
+  }
+
+  /* Tree layout */
+  .tree-container { position: relative; overflow: hidden; min-height: calc(100vh - 56px); background: #f9fafb; cursor: grab; touch-action: none; user-select: none; }
+  .tree-container.dragging { cursor: grabbing; }
+  .tree-container .dot-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+  .tree-container .tree-content { position: relative; z-index: 1; transform-origin: 0 0; padding: 2rem; }
+  .tree-root { display: flex; flex-direction: column; align-items: center; position: relative; }
+  .tree-couple { display: flex; align-items: center; gap: 0; position: relative; }
+  .tree-couple .couple-link { width: 24px; height: 2px; background: #a78bfa; position: relative; }
+  .tree-couple .couple-link svg { position: absolute; top: -8px; left: 3px; color: #a78bfa; }
+  .tree-children { display: flex; justify-content: center; gap: 2rem; position: relative; padding-top: 2rem; }
+  .tree-node-group { display: flex; flex-direction: column; align-items: center; position: relative; }
+
+  /* Leaf-shaped node */
+  .tree-leaf {
+    position: relative;
+    width: 140px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s, box-shadow 0.2s;
+    background: #fff;
+    border-radius: 50% 4px 50% 4px;
+    border: 2px solid #86efac;
+    box-shadow: 0 2px 8px rgba(34,197,94,0.12);
+  }
+  .tree-leaf:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 6px 20px rgba(34,197,94,0.18); }
+  .tree-leaf.male { border-color: #93c5fd; box-shadow: 0 2px 8px rgba(59,130,246,0.12); }
+  .tree-leaf.male:hover { box-shadow: 0 6px 20px rgba(59,130,246,0.18); }
+  .tree-leaf.female { border-color: #f9a8d4; box-shadow: 0 2px 8px rgba(236,72,153,0.12); }
+  .tree-leaf.female:hover { box-shadow: 0 6px 20px rgba(236,72,153,0.18); }
+  .tree-leaf.deceased { border-color: #d1d5db; opacity: 0.75; }
+  .tree-leaf .leaf-name { font-weight: 600; font-size: 13px; color: #1e293b; line-height: 1.3; }
+  .tree-leaf .leaf-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+  /* SVG branch lines */
+  .tree-branches { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+  .tree-branch { stroke: #86efac; stroke-width: 2; fill: none; }
+
+  /* Vertical connector from parent down to children */
+  .tree-vline { width: 2px; height: 2rem; background: #86efac; margin: 0 auto; }
+  /* Vertical stem from horizontal bar down to each child */
+  .tree-child-stem { width: 2px; height: 2rem; background: #86efac; margin: 0 auto; }
+  .tree-children-wrap { display: flex; flex-direction: column; align-items: center; position: relative; }
+  /* Children row with horizontal connecting bar */
+  .tree-children > .tree-node-group { position: relative; }
+  .tree-children > .tree-node-group:not(:only-child)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    height: 2px;
+    background: #86efac;
+  }
+  .tree-children > .tree-node-group:first-child:not(:only-child)::before {
+    left: 50%; right: 0; width: auto;
+  }
+  .tree-children > .tree-node-group:last-child:not(:only-child)::before {
+    right: 50%; left: 0; width: auto;
+  }
+  .tree-children > .tree-node-group:not(:first-child):not(:last-child)::before {
+    left: 0; right: 0; width: 100%;
+  }
+  /* Collapse/expand toggle button */
+  .tree-toggle {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid #86efac;
+    background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #22c55e; margin: 0 auto;
+    transition: background 0.15s, transform 0.15s; z-index: 5; position: relative;
+  }
+  .tree-toggle:hover { background: #f0fdf4; transform: scale(1.15); }
+  .tree-toggle.collapsed { color: #6b7280; border-color: #d1d5db; }
+  .tree-children-wrap.collapsed { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+    <svg class="animate-spin" style="width:32px;height:32px;color:#4f46e5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:0.75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+  </div>
+</div>
+
+<script type="module">
+// ---- URL Parsing ----
+function parseRoute() {
+  const path = window.location.pathname;
+  const segments = path.replace(/^\/tree\/?/, '').split('/').filter(Boolean);
+  if (segments.length === 0) return { view: 'tree', slug: '', memberId: '' };
+  const slug = segments[0];
+  if (segments.length === 1) return { view: 'tree', slug, memberId: '' };
+  if (segments[1] === 'member' && segments[2]) return { view: 'member', slug, memberId: segments[2] };
+  if (segments[1] === 'search') return { view: 'search', slug, memberId: '' };
+  if (segments[1] === 'print') return { view: 'print', slug, memberId: '' };
+  return { view: 'tree', slug, memberId: '' };
+}
+
+// ---- i18n ----
+const translations = {
+  en: {
+    tree: 'Tree', search: 'Search', print: 'Print', editing: 'Editing', edit: 'Edit',
+    familyTree: 'Family Tree', familyInfo: 'Family info',
+    noMembersYet: 'No family members yet.', addFirstMember: '+ Add First Member', addMember: '+ Add Member',
+    memberNotFound: 'Member not found', noConnections: 'No connections yet',
+    familyConnections: 'Family Connections', spouse: 'Spouse', parents: 'Parents', children: 'Children', siblings: 'Siblings',
+    addChild: 'Add Child', addParent: 'Add Parent', addSibling: 'Add Sibling', addSpouse: 'Add Spouse',
+    backToTree: '← Back to Tree', facebook: 'Facebook',
+    searchPlaceholder: 'Search by name or location...', noMembersFound: 'No members found.',
+    printFamilyTree: 'Print Family Tree', goToPrintPage: 'Go to Print Page',
+    familyTreeInfo: 'Family Tree Info', familyName: 'Family Name',
+    originAncestralHome: 'Origin / Ancestral Home', originPlaceholder: 'e.g. Andhra Pradesh, India',
+    description: 'Description', descPlaceholder: 'Tell the story of your family...',
+    addFamilyDesc: '+ Add family description & origin',
+    save: 'Save', cancel: 'Cancel', unlock: 'Unlock', enterPin: 'Enter Admin PIN',
+    fullName: 'Full name', yearOfBirth: 'Year of birth', yearOfDeath: 'Year of death',
+    location: 'Location', phone: 'Phone', email: 'Email', facebookUrl: 'Facebook URL', bio: 'Bio',
+    male: 'Male', female: 'Female', other: 'Other',
+    nameRequired: 'Name is required', removeMember: 'Remove Member',
+    removeConfirm: 'Remove {name}? This will also remove all their relationships.',
+    born: 'b.', died: 'd.',
+    createTree: 'Create a Tree', treeNotFound: 'Tree not found',
+    language: 'Language', share: 'Share', linkCopied: 'Link copied!',
+    removeRelationship: 'Remove', removeRelConfirm: 'Remove {type} relationship with {name}?',
+    collapse: 'Collapse', expand: 'Expand',
+  },
+  te: {
+    tree: 'వృక్షం', search: 'వెతుకు', print: 'ముద్రించు', editing: 'సవరిస్తున్నారు', edit: 'సవరించు',
+    familyTree: 'వంశవృక్షం', familyInfo: 'కుటుంబ సమాచారం',
+    noMembersYet: 'ఇంకా కుటుంబ సభ్యులు లేరు.', addFirstMember: '+ మొదటి సభ్యుడిని చేర్చండి', addMember: '+ సభ్యుడిని చేర్చండి',
+    memberNotFound: 'సభ్యుడు కనుగొనబడలేదు', noConnections: 'ఇంకా సంబంధాలు లేవు',
+    familyConnections: 'కుటుంబ సంబంధాలు', spouse: 'భార్య/భర్త', parents: 'తల్లిదండ్రులు', children: 'పిల్లలు', siblings: 'సోదరులు/సోదరీమణులు',
+    addChild: 'పిల్లవాడిని చేర్చు', addParent: 'తల్లి/తండ్రిని చేర్చు', addSibling: 'సోదరుడిని చేర్చు', addSpouse: 'భార్య/భర్తను చేర్చు',
+    backToTree: '← వృక్షానికి తిరిగి', facebook: 'ఫేస్‌బుక్',
+    searchPlaceholder: 'పేరు లేదా ప్రదేశం ద్వారా వెతకండి...', noMembersFound: 'సభ్యులు కనుగొనబడలేదు.',
+    printFamilyTree: 'వంశవృక్షాన్ని ముద్రించండి', goToPrintPage: 'ముద్రణ పేజీకి వెళ్ళండి',
+    familyTreeInfo: 'వంశవృక్ష సమాచారం', familyName: 'కుటుంబ పేరు',
+    originAncestralHome: 'మూలం / పూర్వీకుల ఇల్లు', originPlaceholder: 'ఉదా. ఆంధ్ర ప్రదేశ్, భారతదేశం',
+    description: 'వివరణ', descPlaceholder: 'మీ కుటుంబ కథ చెప్పండి...',
+    addFamilyDesc: '+ కుటుంబ వివరణ & మూలం చేర్చండి',
+    save: 'సేవ్ చేయండి', cancel: 'రద్దు', unlock: 'అన్‌లాక్', enterPin: 'అడ్మిన్ PIN నమోదు చేయండి',
+    fullName: 'పూర్తి పేరు', yearOfBirth: 'జన్మ సంవత్సరం', yearOfDeath: 'మరణ సంవత్సరం',
+    location: 'ప్రదేశం', phone: 'ఫోన్', email: 'ఈమెయిల్', facebookUrl: 'ఫేస్‌బుక్ URL', bio: 'జీవిత చరిత్ర',
+    male: 'పురుషుడు', female: 'స్త్రీ', other: 'ఇతర',
+    nameRequired: 'పేరు అవసరం', removeMember: 'సభ్యుడిని తొలగించండి',
+    removeConfirm: '{name}ను తొలగించాలా? వారి అన్ని సంబంధాలు కూడా తొలగించబడతాయి.',
+    born: 'జ.', died: 'మ.',
+    createTree: 'వృక్షాన్ని సృష్టించండి', treeNotFound: 'వృక్షం కనుగొనబడలేదు',
+    language: 'భాష', share: 'పంచుకో', linkCopied: 'లింక్ కాపీ అయింది!',
+    removeRelationship: 'తొలగించు', removeRelConfirm: '{name}తో {type} సంబంధాన్ని తొలగించాలా?',
+    collapse: 'కుదించు', expand: 'విస్తరించు',
+  },
+  or: {
+    tree: 'ବୃକ୍ଷ', search: 'ଖୋଜ', print: 'ଛାପ', editing: 'ସଂପାଦନା', edit: 'ସଂପାଦନ',
+    familyTree: 'ବଂଶବୃକ୍ଷ', familyInfo: 'ପରିବାର ସୂଚନା',
+    noMembersYet: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ପରିବାର ସଦସ୍ୟ ନାହାଁନ୍ତି।', addFirstMember: '+ ପ୍ରଥମ ସଦସ୍ୟ ଯୋଡ଼ନ୍ତୁ', addMember: '+ ସଦସ୍ୟ ଯୋଡ଼ନ୍ତୁ',
+    memberNotFound: 'ସଦସ୍ୟ ମିଳିଲା ନାହିଁ', noConnections: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ସଂପର୍କ ନାହିଁ',
+    familyConnections: 'ପରିବାର ସଂପର୍କ', spouse: 'ସ୍ୱାମୀ/ସ୍ତ୍ରୀ', parents: 'ପିତାମାତା', children: 'ପିଲାମାନେ', siblings: 'ଭାଇଭଉଣୀ',
+    addChild: 'ପିଲା ଯୋଡ଼ନ୍ତୁ', addParent: 'ପିତାମାତା ଯୋଡ଼ନ୍ତୁ', addSibling: 'ଭାଇ/ଭଉଣୀ ଯୋଡ଼ନ୍ତୁ', addSpouse: 'ସ୍ୱାମୀ/ସ୍ତ୍ରୀ ଯୋଡ଼ନ୍ତୁ',
+    backToTree: '← ବୃକ୍ଷକୁ ଫେରନ୍ତୁ', facebook: 'ଫେସବୁକ',
+    searchPlaceholder: 'ନାମ ବା ସ୍ଥାନ ଦ୍ୱାରା ଖୋଜନ୍ତୁ...', noMembersFound: 'ସଦସ୍ୟ ମିଳିଲା ନାହିଁ।',
+    printFamilyTree: 'ବଂଶବୃକ୍ଷ ଛାପନ୍ତୁ', goToPrintPage: 'ଛାପ ପୃଷ୍ଠାକୁ ଯାଆନ୍ତୁ',
+    familyTreeInfo: 'ବଂଶବୃକ୍ଷ ସୂଚନା', familyName: 'ପରିବାର ନାମ',
+    originAncestralHome: 'ମୂଳ / ପୂର୍ବପୁରୁଷ ଘର', originPlaceholder: 'ଯଥା ଓଡ଼ିଶା, ଭାରତ',
+    description: 'ବିବରଣ', descPlaceholder: 'ଆପଣଙ୍କ ପରିବାର କଥା କୁହନ୍ତୁ...',
+    addFamilyDesc: '+ ପରିବାର ବିବରଣ ଓ ମୂଳ ଯୋଡ଼ନ୍ତୁ',
+    save: 'ସେଭ', cancel: 'ବାତିଲ', unlock: 'ଅନଲକ', enterPin: 'ଆଡମିନ PIN ପ୍ରବେଶ କରନ୍ତୁ',
+    fullName: 'ପୂରା ନାମ', yearOfBirth: 'ଜନ୍ମ ବର୍ଷ', yearOfDeath: 'ମୃତ୍ୟୁ ବର୍ଷ',
+    location: 'ସ୍ଥାନ', phone: 'ଫୋନ', email: 'ଇମେଲ', facebookUrl: 'ଫେସବୁକ URL', bio: 'ଜୀବନୀ',
+    male: 'ପୁରୁଷ', female: 'ମହିଳା', other: 'ଅନ୍ୟ',
+    nameRequired: 'ନାମ ଆବଶ୍ୟକ', removeMember: 'ସଦସ୍ୟ ହଟାନ୍ତୁ',
+    removeConfirm: '{name}ଙ୍କୁ ହଟାଇବେ? ସେମାନଙ୍କ ସମସ୍ତ ସଂପର୍କ ମଧ୍ୟ ହଟାଯିବ।',
+    born: 'ଜ.', died: 'ମ.',
+    createTree: 'ବୃକ୍ଷ ସୃଷ୍ଟି କରନ୍ତୁ', treeNotFound: 'ବୃକ୍ଷ ମିଳିଲା ନାହିଁ',
+    language: 'ଭାଷା', share: 'ଶେୟାର', linkCopied: 'ଲିଙ୍କ କପି ହୋଇଗଲା!',
+    removeRelationship: 'ହଟାନ୍ତୁ', removeRelConfirm: '{name}ଙ୍କ ସହ {type} ସଂପର୍କ ହଟାଇବେ?',
+    collapse: 'ସଙ୍କୁଚିତ', expand: 'ବିସ୍ତାର',
+  }
+};
+
+let currentLang = localStorage.getItem('gentree-lang') || 'en';
+function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key; }
+function setLang(lang) { currentLang = lang; localStorage.setItem('gentree-lang', lang); render(); }
+
+// ---- Transliteration ----
+const teMap = {
+  a:'అ',aa:'ఆ',i:'ఇ',ii:'ఈ',ee:'ఈ',u:'ఉ',uu:'ఊ',oo:'ఊ',e:'ఎ',ai:'ఐ',o:'ఒ',au:'ఔ',
+  ka:'క',kha:'ఖ',ga:'గ',gha:'ఘ',cha:'చ',chha:'ఛ',ja:'జ',jha:'ఝ',
+  ta:'ట',tha:'ఠ',da:'డ',dha:'ధ',na:'న',na2:'ణ',
+  pa:'ప',pha:'ఫ',ba:'బ',bha:'భ',ma:'మ',
+  ya:'య',ra:'ర',la:'ల',va:'వ',wa:'వ',sha:'శ',sa:'స',ha:'హ',
+  // vowel marks (after consonant)
+  _a:'',_aa:'ా',_i:'ి',_ii:'ీ',_ee:'ీ',_u:'ు',_uu:'ూ',_oo:'ూ',_e:'ె',_ai:'ై',_o:'ో',_au:'ౌ',
+};
+const orMap = {
+  a:'ଅ',aa:'ଆ',i:'ଇ',ii:'ଈ',ee:'ଈ',u:'ଉ',uu:'ଊ',oo:'ଊ',e:'ଏ',ai:'ଐ',o:'ଓ',au:'ଔ',
+  ka:'କ',kha:'ଖ',ga:'ଗ',gha:'ଘ',cha:'ଚ',chha:'ଛ',ja:'ଜ',jha:'ଝ',
+  ta:'ଟ',tha:'ଠ',da:'ଡ',dha:'ଧ',na:'ନ',na2:'ଣ',
+  pa:'ପ',pha:'ଫ',ba:'ବ',bha:'ଭ',ma:'ମ',
+  ya:'ୟ',ra:'ର',la:'ଲ',va:'ୱ',wa:'ୱ',sha:'ଶ',sa:'ସ',ha:'ହ',
+  _a:'',_aa:'ା',_i:'ି',_ii:'ୀ',_ee:'ୀ',_u:'ୁ',_uu:'ୂ',_oo:'ୂ',_e:'େ',_ai:'ୈ',_o:'ୋ',_au:'ୌ',
+};
+
+function transliterate(text, map) {
+  if (!text) return text;
+  // Process word by word, preserving spaces and non-alpha
+  return text.split(/(\s+|[^a-zA-Z]+)/).map(word => {
+    if (!word || !/[a-zA-Z]/.test(word)) return word;
+    return transliterateWord(word.toLowerCase(), map);
+  }).join('');
+}
+
+function transliterateWord(w, map) {
+  const vowels = { a:1, e:1, i:1, o:1, u:1 };
+  const consonants = ['chh','ch','kh','gh','jh','th','dh','ph','bh','sh','k','g','j','t','d','n','p','b','m','y','r','l','v','w','s','h'];
+  const longVowels = ['aa','ee','oo','ai','au','ii','uu'];
+  const shortVowels = ['a','e','i','o','u'];
+  const allVowels = [...longVowels, ...shortVowels];
+
+  let result = '';
+  let pos = 0;
+  let lastWasConsonant = false;
+
+  while (pos < w.length) {
+    let matched = false;
+
+    // Try consonant
+    for (const c of consonants) {
+      if (w.substring(pos, pos + c.length) === c) {
+        const base = map[c + 'a']; // consonant base
+        if (!base) { pos += c.length; matched = true; break; }
+
+        pos += c.length;
+        // Check for following vowel
+        let foundVowel = false;
+        for (const v of allVowels) {
+          if (w.substring(pos, pos + v.length) === v) {
+            result += base + (map['_' + v] || '');
+            pos += v.length;
+            foundVowel = true;
+            break;
+          }
+        }
+        if (!foundVowel) {
+          // Check if next char is a consonant or end — add halant/virama
+          if (pos < w.length && !vowels[w[pos]]) {
+            result += base + (map === teMap ? '్' : '୍'); // virama
+          } else if (pos >= w.length) {
+            result += base + (map === teMap ? '్' : '୍');
+          } else {
+            result += base;
+          }
+        }
+        lastWasConsonant = true;
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+
+    // Try standalone vowel
+    let foundVowel = false;
+    for (const v of allVowels) {
+      if (w.substring(pos, pos + v.length) === v) {
+        result += map[v] || v;
+        pos += v.length;
+        lastWasConsonant = false;
+        foundVowel = true;
+        break;
+      }
+    }
+    if (foundVowel) continue;
+
+    // Unknown char — pass through
+    result += w[pos];
+    pos++;
+    lastWasConsonant = false;
+  }
+  return result;
+}
+
+// Transliterate display text based on current language
+function tl(text) {
+  if (currentLang === 'te') return transliterate(text, teMap);
+  if (currentLang === 'or') return transliterate(text, orMap);
+  return text;
+}
+
+// ---- Helpers ----
+function getYear(dateStr) {
+  if (!dateStr) return '';
+  return dateStr.substring(0, 4);
+}
+
+// ---- API Client ----
+const API = '/api';
+function getToken() { return sessionStorage.getItem('gentree-edit-token'); }
+
+async function apiGet(path) {
+  const res = await fetch(API + path);
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API + path, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+  return res.json();
+}
+
+async function apiPut(path, body) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API + path, { method: 'PUT', headers, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+  return res.json();
+}
+
+async function apiDelete(path) {
+  const token = getToken();
+  const headers = {};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API + path, { method: 'DELETE', headers });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+  return res.json();
+}
+
+// ---- State ----
+let state = { tree: null, members: [], relationships: [], comments: [], loading: true, error: null, editMode: !!getToken() };
+
+function getSpouse(memberId) {
+  const rel = state.relationships.find(r => r.type === 'spouse' && (r.fromMemberId === memberId || r.toMemberId === memberId));
+  if (!rel) return null;
+  const spouseId = rel.fromMemberId === memberId ? rel.toMemberId : rel.fromMemberId;
+  return state.members.find(m => m.id === spouseId) || null;
+}
+// Get full sibling group (transitive sibling walk + shared parents), returns Set of IDs excluding input
+function _siblingGroup(memberId) {
+  const siblingRels = state.relationships.filter(r => r.type === 'sibling');
+  const visited = new Set();
+  const queue = [memberId];
+  visited.add(memberId);
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const r of siblingRels) {
+      const other = r.fromMemberId === cur ? r.toMemberId : r.toMemberId === cur ? r.fromMemberId : null;
+      if (other && !visited.has(other)) { visited.add(other); queue.push(other); }
+    }
+  }
+  const parentIds = state.relationships.filter(r => r.type === 'parent' && r.toMemberId === memberId).map(r => r.fromMemberId);
+  for (const pid of parentIds) {
+    state.relationships.filter(r => r.type === 'parent' && r.fromMemberId === pid).forEach(r => visited.add(r.toMemberId));
+  }
+  visited.delete(memberId);
+  return visited;
+}
+function getChildren(memberId) {
+  // Direct children + siblings of direct children (inferred from sibling relationships)
+  const directChildIds = state.relationships.filter(r => r.type === 'parent' && r.fromMemberId === memberId).map(r => r.toMemberId);
+  const allChildIds = new Set(directChildIds);
+  for (const cid of directChildIds) {
+    _siblingGroup(cid).forEach(sid => allChildIds.add(sid));
+  }
+  return state.members.filter(m => allChildIds.has(m.id));
+}
+function getParents(memberId) {
+  // Direct parents + parents of siblings (inferred from sibling relationships)
+  const directParentIds = state.relationships.filter(r => r.type === 'parent' && r.toMemberId === memberId).map(r => r.fromMemberId);
+  const allParentIds = new Set(directParentIds);
+  const sibIds = _siblingGroup(memberId);
+  for (const sid of sibIds) {
+    state.relationships.filter(r => r.type === 'parent' && r.toMemberId === sid).forEach(r => allParentIds.add(r.fromMemberId));
+  }
+  return state.members.filter(m => allParentIds.has(m.id));
+}
+function getSiblings(memberId) {
+  return state.members.filter(m => _siblingGroup(memberId).has(m.id));
+}
+
+// ---- Rendering ----
+const $ = document.getElementById.bind(document);
+const app = $('app');
+
+function h(tag, attrs, ...children) {
+  const el = document.createElement(tag);
+  if (attrs) Object.entries(attrs).forEach(([k, v]) => {
+    if (k === 'className') el.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+    else el.setAttribute(k, v);
+  });
+  children.flat(Infinity).forEach(c => {
+    if (c == null || c === false) return;
+    el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  });
+  return el;
+}
+
+function svg(paths, size = 16, vb = '0 0 24 24') {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('width', size); s.setAttribute('height', size);
+  s.setAttribute('viewBox', vb); s.setAttribute('fill', 'none');
+  s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2');
+  s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+  s.style.display = 'inline-block'; s.style.verticalAlign = 'middle'; s.style.flexShrink = '0';
+  (Array.isArray(paths) ? paths : [paths]).forEach(d => {
+    if (d.startsWith('<')) { s.innerHTML += d; return; }
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', d); s.appendChild(p);
+  });
+  return s;
+}
+
+const icons = {
+  tree: (sz) => svg(['M12 22V14', 'M12 8C12 8 8 10 6 14', 'M12 8C12 8 16 10 18 14', 'M12 14C12 14 9.5 12 8 14', 'M12 14C12 14 14.5 12 16 14', 'M12 2C12 2 7 6 7 10C7 12.5 9 14 12 14C15 14 17 12.5 17 10C17 6 12 2 12 2Z'], sz),
+  info: (sz) => svg(['<circle cx="12" cy="12" r="10"/>', 'M12 16V12', '<line x1="12" y1="8" x2="12.01" y2="8"/>'], sz),
+  mapPin: (sz) => svg(['M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z', '<circle cx="12" cy="10" r="3"/>'], sz),
+  mail: (sz) => svg(['<rect x="2" y="4" width="20" height="16" rx="2"/>', 'M22 4L12 13 2 4'], sz),
+  edit: (sz) => svg(['M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7', 'M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z'], sz),
+  baby: (sz) => svg(['<circle cx="12" cy="8" r="5"/>', 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2'], sz),
+  parent: (sz) => svg(['M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2', '<circle cx="9" cy="7" r="4"/>', 'M22 21v-2a4 4 0 00-3-3.87', 'M16 3.13a4 4 0 010 7.75'], sz),
+  users: (sz) => svg(['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2', '<circle cx="9" cy="7" r="4"/>', 'M23 21v-2a4 4 0 00-3-3.87', '<circle cx="16" cy="3" r="4" stroke-dasharray="12.5 12.5"/>'], sz),
+  heart: (sz) => svg('M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z', sz),
+  trash: (sz) => svg(['M3 6h18', 'M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2'], sz),
+  lock: (sz) => svg(['<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>', 'M7 11V7a5 5 0 0110 0v4'], sz),
+  unlock: (sz) => svg(['<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>', 'M7 11V7a5 5 0 019.9-1'], sz),
+  eye: (sz) => svg(['M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z', '<circle cx="12" cy="12" r="3"/>'], sz),
+  eyeOff: (sz) => svg(['M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94', 'M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19', 'M1 1l22 22', 'M14.12 14.12a3 3 0 11-4.24-4.24'], sz),
+  reset: (sz) => svg(['M1 4v6h6', 'M3.51 15a9 9 0 102.13-9.36L1 10'], sz),
+  ring: (sz) => svg(['<circle cx="12" cy="12" r="6"/>', '<circle cx="12" cy="12" r="2"/>'], sz),
+  share: (sz) => svg(['<circle cx="18" cy="5" r="3"/>', '<circle cx="6" cy="12" r="3"/>', '<circle cx="18" cy="19" r="3"/>', 'M8.59 13.51l6.83 3.98', 'M15.41 6.51l-6.82 3.98'], sz),
+  link: (sz) => svg(['M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71', 'M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71'], sz),
+  check: (sz) => svg('M20 6L9 17l-5-5', sz),
+  menu: (sz) => svg(['M3 12h18', 'M3 6h18', 'M3 18h18'], sz),
+  x: (sz) => svg(['M18 6L6 18', 'M6 6l12 12'], sz),
+  globe: (sz) => svg(['<circle cx="12" cy="12" r="10"/>', 'M2 12h20', 'M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z'], sz),
+};
+
+function renderHeader(slug) {
+  const tree = state.tree || {};
+  const name = tl(tree.name) || t('familyTree');
+  const hasInfo = tree.origin || tree.description || tree.creatorEmail;
+  const shareUrl = 'https://wa.me/?text=' + encodeURIComponent(name + ' ' + t('familyTree') + ' ' + window.location.origin + '/tree/' + slug);
+
+  const langSelect = h('select', {
+    className: 'text-sm bg-transparent border rounded-lg px-2 py-1 cursor-pointer',
+    onChange: (e) => setLang(e.target.value)
+  },
+    h('option', { value: 'en', selected: currentLang === 'en' }, 'English'),
+    h('option', { value: 'te', selected: currentLang === 'te' }, 'తెలుగు'),
+    h('option', { value: 'or', selected: currentLang === 'or' }, 'ଓଡ଼ିଆ')
+  );
+  // Set correct initial value
+  setTimeout(() => { langSelect.value = currentLang; }, 0);
+
+  function navLink(href, label) {
+    return h('a', { href, className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 block', style: { textDecoration: 'none', color: 'inherit' } }, label);
+  }
+
+  const editBtn = state.editMode
+    ? h('button', { className: 'text-sm px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-200 flex items-center gap-1', onClick: () => { sessionStorage.removeItem('gentree-edit-token'); state.editMode = false; render(); } }, icons.unlock(14), ' ' + t('editing'))
+    : h('button', { className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1', onClick: () => showPinModal(slug) }, icons.lock(14), ' ' + t('edit'));
+
+  const shareLink = h('a', { href: shareUrl, target: '_blank', className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1', style: { textDecoration: 'none', color: 'inherit' } }, icons.share(14), ' ' + t('share'));
+
+  // Mobile menu (hidden by default)
+  const mobileMenu = h('div', { className: 'mobile-menu' },
+    navLink('/tree/' + slug + '/search', t('search')),
+    navLink('/tree/' + slug + '/print', t('print')),
+    shareLink.cloneNode(true),
+    h('div', { className: 'flex items-center gap-2 px-3 py-1.5' }, icons.globe(14), langSelect.cloneNode(true)),
+    editBtn.cloneNode(true)
+  );
+  // Wire up cloned elements
+  mobileMenu.querySelector('select')?.addEventListener('change', (e) => setLang(e.target.value));
+  setTimeout(() => { const sel = mobileMenu.querySelector('select'); if (sel) sel.value = currentLang; }, 0);
+  mobileMenu.querySelectorAll('button').forEach(btn => {
+    if (btn.textContent.includes(t('editing'))) {
+      btn.addEventListener('click', () => { sessionStorage.removeItem('gentree-edit-token'); state.editMode = false; render(); });
+    } else if (btn.textContent.includes(t('edit'))) {
+      btn.addEventListener('click', () => showPinModal(slug));
+    }
+  });
+  mobileMenu.querySelectorAll('a[target="_blank"]').forEach(a => {
+    a.href = shareUrl;
+  });
+
+  const hamburgerBtn = h('button', { className: 'nav-hamburger p-2 rounded-lg hover:bg-gray-100', onClick: () => {
+    mobileMenu.classList.toggle('open');
+    hamburgerBtn.innerHTML = '';
+    hamburgerBtn.appendChild(mobileMenu.classList.contains('open') ? icons.x(20) : icons.menu(20));
+  }}, icons.menu(20));
+
+  return h('header', { className: 'sticky top-0 z-50 border-b bg-white/80 backdrop-blur-sm' },
+    h('div', { className: 'mx-auto flex h-14 max-w-7xl items-center justify-between px-4' },
+      h('div', { className: 'flex items-center gap-2' },
+        h('a', { href: '/tree/' + slug, className: 'flex items-center gap-2 font-bold text-xl text-indigo-600', style: { textDecoration: 'none' } }, icons.tree(20), ' ' + name),
+        hasInfo ? h('button', { className: 'text-gray-400 hover:text-gray-600 text-sm', title: t('familyInfo'), onClick: (e) => {
+          e.preventDefault();
+          const info = document.getElementById('tree-info-banner');
+          if (info) info.classList.toggle('hidden');
+        }}, icons.info(16)) : null
+      ),
+      h('nav', { className: 'nav-desktop' },
+        navLink('/tree/' + slug + '/search', t('search')),
+        navLink('/tree/' + slug + '/print', t('print')),
+        shareLink,
+        h('div', { className: 'flex items-center gap-1' }, icons.globe(14), langSelect),
+        editBtn
+      ),
+      hamburgerBtn
+    ),
+    mobileMenu,
+    hasInfo ? h('div', { id: 'tree-info-banner', className: 'hidden border-t bg-gradient-to-r from-indigo-50 to-white px-4 py-3 max-w-7xl mx-auto' },
+      h('div', { className: 'flex items-start justify-between gap-4' },
+        h('div', null,
+          tree.origin ? h('p', { className: 'text-sm text-indigo-700 font-medium' }, icons.mapPin(14), ' ' + tl(tree.origin)) : null,
+          tree.description ? h('p', { className: 'text-sm text-gray-600 mt-1' }, tl(tree.description)) : null,
+          tree.creatorEmail ? h('p', { className: 'text-sm text-gray-500 mt-1' }, icons.mail(14), ' ', h('a', { href: 'mailto:' + tree.creatorEmail, className: 'text-indigo-600' }, tree.creatorEmail)) : null
+        ),
+        h('button', { className: 'text-xs text-gray-400 hover:text-gray-600 shrink-0', onClick: () => guardEdit(slug, () => showTreeInfoModal(slug)) }, icons.edit(14), ' ' + t('edit'))
+      )
+    ) : null,
+    !hasInfo && state.editMode ? h('div', { className: 'border-t bg-gray-50 px-4 py-2 max-w-7xl mx-auto' },
+      h('button', { className: 'text-xs text-indigo-600 hover:text-indigo-800', onClick: () => showTreeInfoModal(slug) }, t('addFamilyDesc'))
+    ) : null
+  );
+}
+
+function renderMemberCard(member, slug) {
+  const genderColor = member.gender === 'male' ? 'border-blue-400' : member.gender === 'female' ? 'border-pink-400' : 'border-purple-400';
+  const deceased = !!member.dateOfDeath;
+  return h('a', {
+    href: '/tree/' + slug + '/member/' + member.id,
+    className: 'block bg-white rounded-xl border-2 shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow ' + (deceased ? 'border-gray-400 opacity-80' : genderColor),
+    style: { textDecoration: 'none', color: 'inherit' }
+  },
+    h('p', { className: 'font-semibold text-sm text-gray-900' }, tl(member.name)),
+    member.dateOfBirth ? h('p', { className: 'text-xs text-gray-500' }, t('born') + ' ' + getYear(member.dateOfBirth) + (member.dateOfDeath ? ' – ' + t('died') + ' ' + getYear(member.dateOfDeath) : '')) : null,
+    member.location ? h('p', { className: 'text-xs text-gray-400 mt-0.5' }, icons.mapPin(12), ' ' + tl(member.location)) : null
+  );
+}
+
+function renderLeafNode(member, slug) {
+  const cls = 'tree-leaf' + (member.gender === 'male' ? ' male' : member.gender === 'female' ? ' female' : '') + (member.dateOfDeath ? ' deceased' : '');
+  return h('a', { href: '/tree/' + slug + '/member/' + member.id, className: cls },
+    h('div', { className: 'leaf-name' }, tl(member.name)),
+    member.dateOfBirth ? h('div', { className: 'leaf-meta' }, t('born') + ' ' + getYear(member.dateOfBirth) + (member.dateOfDeath ? ' – ' + t('died') + ' ' + getYear(member.dateOfDeath) : '')) : null,
+    member.location ? h('div', { className: 'leaf-meta' }, tl(member.location)) : null
+  );
+}
+
+function buildFamilyTree(slug) {
+  // Find root members (those with no parents in the data)
+  const hasParent = new Set();
+  state.relationships.filter(r => r.type === 'parent').forEach(r => hasParent.add(r.toMemberId));
+  let roots = state.members.filter(m => !hasParent.has(m.id));
+
+  // Build spouse map from explicit spouse relationships + co-parents (two people who are both parents of the same child)
+  const spouseMap = {};
+  state.relationships.filter(r => r.type === 'spouse').forEach(r => {
+    spouseMap[r.fromMemberId] = r.toMemberId;
+    spouseMap[r.toMemberId] = r.fromMemberId;
+  });
+  // Infer co-parent couples: if two members are both parents of the same child, treat as couple
+  const parentsByChild = {};
+  state.relationships.filter(r => r.type === 'parent').forEach(r => {
+    (parentsByChild[r.toMemberId] = parentsByChild[r.toMemberId] || []).push(r.fromMemberId);
+  });
+  Object.values(parentsByChild).forEach(parents => {
+    if (parents.length === 2 && !spouseMap[parents[0]]) {
+      spouseMap[parents[0]] = parents[1];
+      spouseMap[parents[1]] = parents[0];
+    }
+  });
+
+  const rendered = new Set();
+
+  function renderSubtree(memberId) {
+    if (rendered.has(memberId)) return null;
+    rendered.add(memberId);
+
+    const member = state.members.find(m => m.id === memberId);
+    if (!member) return null;
+
+    const spouseId = spouseMap[memberId];
+    const spouse = spouseId ? state.members.find(m => m.id === spouseId) : null;
+    if (spouse) rendered.add(spouse.id);
+
+    // Get children: direct children + their siblings (so sibling-linked members appear at the same level)
+    const directChildIds = new Set();
+    state.relationships.filter(r => r.type === 'parent' && r.fromMemberId === memberId).forEach(r => directChildIds.add(r.toMemberId));
+    if (spouse) {
+      state.relationships.filter(r => r.type === 'parent' && r.fromMemberId === spouse.id).forEach(r => directChildIds.add(r.toMemberId));
+    }
+    const childIds = new Set(directChildIds);
+    for (const cid of directChildIds) {
+      _siblingGroup(cid).forEach(sid => childIds.add(sid));
+    }
+
+    // Sort children by birth year (oldest left, youngest right); no DOB goes to the end
+    const sortedChildIds = [...childIds].sort((a, b) => {
+      const ma = state.members.find(m => m.id === a);
+      const mb = state.members.find(m => m.id === b);
+      const ya = ma && ma.dateOfBirth ? parseInt(ma.dateOfBirth) : 9999;
+      const yb = mb && mb.dateOfBirth ? parseInt(mb.dateOfBirth) : 9999;
+      return ya - yb;
+    });
+    const childSubtrees = sortedChildIds.map(cid => renderSubtree(cid)).filter(Boolean);
+
+    // Build the couple node
+    const coupleNode = spouse
+      ? h('div', { className: 'tree-couple' },
+          renderLeafNode(member, slug),
+          h('div', { className: 'couple-link' }, icons.heart(14)),
+          renderLeafNode(spouse, slug)
+        )
+      : renderLeafNode(member, slug);
+
+    if (childSubtrees.length === 0) {
+      return h('div', { className: 'tree-node-group' }, coupleNode);
+    }
+
+    // Collapse/expand toggle
+    const toggleBtn = h('button', { className: 'tree-toggle', title: t('collapse'), onClick: (e) => {
+      e.stopPropagation();
+      const wrap = toggleBtn.nextElementSibling;
+      if (!wrap) return;
+      const isCollapsed = wrap.classList.toggle('collapsed');
+      toggleBtn.textContent = isCollapsed ? '+' : '−';
+      toggleBtn.title = isCollapsed ? t('expand') : t('collapse');
+      toggleBtn.classList.toggle('collapsed', isCollapsed);
+    }}, '−');
+
+    const childrenWrap = h('div', { className: 'tree-children-wrap' },
+      h('div', { className: 'tree-vline' }),
+      h('div', { className: 'tree-children' },
+        ...childSubtrees.map(st =>
+          h('div', { className: 'tree-node-group' },
+            h('div', { className: 'tree-child-stem' }),
+            st
+          )
+        )
+      )
+    );
+
+    return h('div', { className: 'tree-node-group' },
+      coupleNode,
+      toggleBtn,
+      childrenWrap
+    );
+  }
+
+  // If no clear roots, pick the lowest generation members
+  if (roots.length === 0) {
+    const minGen = Math.min(...state.members.map(m => m.generation));
+    roots = state.members.filter(m => m.generation === minGen);
+  }
+
+  // Group root spouses to avoid duplicates
+  const rootGroups = [];
+  const rootRendered = new Set();
+  for (const r of roots) {
+    if (rootRendered.has(r.id)) continue;
+    rootRendered.add(r.id);
+    if (spouseMap[r.id]) rootRendered.add(spouseMap[r.id]);
+    rootGroups.push(r.id);
+  }
+
+  return rootGroups.map(rid => renderSubtree(rid)).filter(Boolean);
+}
+
+function renderTreeView(slug) {
+  if (state.members.length === 0) {
+    return h('div', { className: 'min-h-screen bg-gray-50' },
+      renderHeader(slug),
+      h('div', { className: 'flex flex-col items-center justify-center py-20' },
+        h('p', { className: 'text-gray-500 mb-4' }, t('noMembersYet')),
+        state.editMode ? h('button', { className: 'bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700', onClick: () => showAddMemberModal(slug) }, t('addFirstMember')) : null
+      )
+    );
+  }
+
+  const subtrees = buildFamilyTree(slug);
+
+  let zoom = 1, panX = 0, panY = 0;
+  let dragging = false, dragStartX = 0, dragStartY = 0, startPanX = 0, startPanY = 0;
+  let lastTouchDist = 0;
+
+  const treeContent = h('div', { className: 'tree-content' },
+    state.editMode ? h('div', { className: 'flex justify-end mb-4', style: { position: 'relative', zIndex: 10 } },
+      h('button', { className: 'bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm', onClick: () => showAddMemberModal(slug) }, t('addMember'))
+    ) : null,
+    h('div', { className: 'tree-root', style: { gap: '3rem' } }, ...subtrees)
+  );
+
+  function applyTransform() {
+    treeContent.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+    // Update dot pattern
+    const dotSize = 20 * zoom;
+    const patEl = dotPattern;
+    if (patEl) {
+      patEl.setAttribute('x', (panX % dotSize));
+      patEl.setAttribute('y', (panY % dotSize));
+      patEl.setAttribute('width', dotSize);
+      patEl.setAttribute('height', dotSize);
+    }
+    zoomLabel.textContent = Math.round(zoom * 100) + '%';
+  }
+
+  // Dot grid background
+  const dotPattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+  dotPattern.setAttribute('id', 'tree-dots');
+  dotPattern.setAttribute('width', '20');
+  dotPattern.setAttribute('height', '20');
+  dotPattern.setAttribute('patternUnits', 'userSpaceOnUse');
+  const dotCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dotCircle.setAttribute('cx', '1'); dotCircle.setAttribute('cy', '1');
+  dotCircle.setAttribute('r', '1'); dotCircle.setAttribute('fill', '#e5e7eb');
+  dotPattern.appendChild(dotCircle);
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const dotSvg = document.createElementNS(svgNS, 'svg');
+  dotSvg.setAttribute('class', 'dot-bg');
+  dotSvg.setAttribute('width', '100%');
+  dotSvg.setAttribute('height', '100%');
+  const defs = document.createElementNS(svgNS, 'defs');
+  defs.appendChild(dotPattern);
+  dotSvg.appendChild(defs);
+  const bgRect = document.createElementNS(svgNS, 'rect');
+  bgRect.setAttribute('width', '100%');
+  bgRect.setAttribute('height', '100%');
+  bgRect.setAttribute('fill', 'url(#tree-dots)');
+  dotSvg.appendChild(bgRect);
+
+  const container = h('div', { className: 'tree-container' });
+  container.appendChild(dotSvg);
+  container.appendChild(treeContent);
+
+  // Mouse drag to pan
+  container.addEventListener('mousedown', (e) => {
+    if (e.target.closest('a, button')) return; // don't hijack clicks on nodes
+    dragging = true;
+    container.classList.add('dragging');
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    startPanX = panX; startPanY = panY;
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    panX = startPanX + (e.clientX - dragStartX);
+    panY = startPanY + (e.clientY - dragStartY);
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => { dragging = false; container.classList.remove('dragging'); });
+
+  // Scroll wheel zoom
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    zoom = Math.max(0.1, Math.min(3, zoom * delta));
+    applyTransform();
+  }, { passive: false });
+
+  // Touch: 1-finger pan, 2-finger pinch zoom
+  container.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1 && !e.target.closest('a, button')) {
+      dragging = true;
+      dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY;
+      startPanX = panX; startPanY = panY;
+    } else if (e.touches.length === 2) {
+      lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    }
+  });
+  container.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (e.touches.length === 1 && dragging) {
+      panX = startPanX + (e.touches[0].clientX - dragStartX);
+      panY = startPanY + (e.touches[0].clientY - dragStartY);
+      applyTransform();
+    } else if (e.touches.length === 2) {
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      if (lastTouchDist > 0) {
+        zoom = Math.max(0.1, Math.min(3, zoom * (dist / lastTouchDist)));
+      }
+      lastTouchDist = dist;
+      applyTransform();
+    }
+  }, { passive: false });
+  container.addEventListener('touchend', () => { dragging = false; lastTouchDist = 0; });
+
+  // Zoom controls (floating)
+  const zoomLabel = h('span', { className: 'text-sm font-medium w-12 text-center' }, '100%');
+  const zoomControls = h('div', { className: 'fixed bottom-6 right-6 z-40 flex items-center gap-1 bg-white rounded-xl shadow-lg border px-2 py-1.5' },
+    h('button', { className: 'w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-lg font-bold', onClick: () => { zoom = Math.max(0.1, zoom * 0.9); applyTransform(); } }, '−'),
+    zoomLabel,
+    h('button', { className: 'w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-lg font-bold', onClick: () => { zoom = Math.min(3, zoom * 1.1); applyTransform(); } }, '+'),
+    h('button', { className: 'w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-xs', onClick: () => { zoom = 1; panX = 0; panY = 0; applyTransform(); } }, icons.reset(14))
+  );
+
+  return h('div', { className: 'min-h-screen' },
+    renderHeader(slug),
+    container,
+    zoomControls
+  );
+}
+
+function renderMemberView(slug, memberId) {
+  const member = state.members.find(m => m.id === memberId);
+  if (!member) {
+    return h('div', { className: 'min-h-screen bg-gray-50' },
+      renderHeader(slug),
+      h('div', { className: 'text-center py-20' }, h('p', { className: 'text-gray-500' }, t('memberNotFound')))
+    );
+  }
+
+  const spouse = getSpouse(memberId);
+  const parents = getParents(memberId);
+  const children = getChildren(memberId);
+  const siblings = getSiblings(memberId);
+
+  // Find relationship records between this member and another, for a given section type
+  function findRelationships(otherMemberId, sectionType) {
+    // sectionType: 'spouse', 'parent' (for parents section), 'child' (for children section), 'sibling'
+    return state.relationships.filter(r => {
+      if (sectionType === 'spouse') {
+        return r.type === 'spouse' && (
+          (r.fromMemberId === memberId && r.toMemberId === otherMemberId) ||
+          (r.toMemberId === memberId && r.fromMemberId === otherMemberId)
+        );
+      }
+      if (sectionType === 'parent') {
+        // The other member is a parent of me
+        return r.type === 'parent' && r.fromMemberId === otherMemberId && r.toMemberId === memberId;
+      }
+      if (sectionType === 'child') {
+        // I am a parent of the other member
+        return r.type === 'parent' && r.fromMemberId === memberId && r.toMemberId === otherMemberId;
+      }
+      if (sectionType === 'sibling') {
+        return r.type === 'sibling' && (
+          (r.fromMemberId === memberId && r.toMemberId === otherMemberId) ||
+          (r.toMemberId === memberId && r.fromMemberId === otherMemberId)
+        );
+      }
+      return false;
+    });
+  }
+
+  function removeRel(rel, otherName, relType) {
+    const msg = t('removeRelConfirm').replace('{name}', otherName).replace('{type}', relType);
+    if (!confirm(msg)) return;
+    apiDelete('/trees/' + slug + '/relationships/' + rel.id).then(() => {
+      state.relationships = state.relationships.filter(r => r.id !== rel.id);
+      render();
+    }).catch(e => alert(e.message));
+  }
+
+  function memberLink(m, sectionType) {
+    const rels = findRelationships(m.id, sectionType);
+    const trashBtn = rels.length > 0 ? h('button', {
+      className: 'text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50',
+      title: t('removeRelationship'),
+      onClick: () => guardEdit(slug, () => removeRel(rels[0], m.name, sectionType))
+    }, icons.trash(12)) : null;
+    return h('div', { className: 'flex items-center gap-1' },
+      h('a', { href: '/tree/' + slug + '/member/' + m.id, className: 'flex-1 flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 text-sm font-medium', style: { textDecoration: 'none', color: 'inherit' } }, tl(m.name)),
+      trashBtn
+    );
+  }
+
+  function section(label, list, sectionType) {
+    if (!list || list.length === 0) return null;
+    return h('div', null,
+      h('p', { className: 'text-xs text-gray-500 uppercase tracking-wide mb-1' }, label),
+      ...list.map(m => memberLink(m, sectionType))
+    );
+  }
+
+  return h('div', { className: 'min-h-screen bg-gray-50' },
+    renderHeader(slug),
+    h('div', { className: 'max-w-2xl mx-auto px-4 py-6 space-y-6' },
+      h('a', { href: '/tree/' + slug, className: 'text-sm text-gray-500 hover:text-gray-700', style: { textDecoration: 'none' } }, t('backToTree')),
+      h('div', { className: 'bg-white rounded-xl border p-6 text-center' },
+        h('h1', { className: 'text-2xl font-bold' }, tl(member.name)),
+        member.maidenName ? h('p', { className: 'text-sm text-gray-500' }, 'née ' + member.maidenName) : null,
+        member.dateOfBirth ? h('p', { className: 'text-sm text-gray-500' }, t('born') + ' ' + getYear(member.dateOfBirth) + (member.dateOfDeath ? ' – ' + t('died') + ' ' + getYear(member.dateOfDeath) : '')) : null,
+        member.location ? h('p', { className: 'text-sm text-gray-500 mt-1' }, icons.mapPin(12), ' ' + tl(member.location)) : null,
+        member.phone ? h('p', { className: 'text-sm mt-1' }, h('a', { href: 'tel:' + member.phone, className: 'text-indigo-600' }, member.phone)) : null,
+        member.email ? h('p', { className: 'text-sm mt-1' }, h('a', { href: 'mailto:' + member.email, className: 'text-indigo-600' }, member.email)) : null,
+        member.facebookUrl ? h('p', { className: 'text-sm mt-1' }, h('a', { href: member.facebookUrl, target: '_blank', className: 'text-indigo-600' }, t('facebook'))) : null,
+        member.bio ? h('p', { className: 'text-sm text-gray-600 mt-3' }, member.bio) : null,
+        h('div', { className: 'flex flex-wrap justify-center gap-2 mt-4' },
+          h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showEditMemberModal(slug, member)) }, icons.edit(14), ' ' + t('edit')),
+          h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'child')) }, icons.baby(14), ' ' + t('addChild')),
+          h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'parent-of')) }, icons.parent(14), ' ' + t('addParent')),
+          h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'sibling')) }, icons.users(14), ' ' + t('addSibling')),
+          !spouse ? h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'spouse')) }, icons.heart(14), ' ' + t('addSpouse')) : null
+        )
+      ),
+      h('div', { className: 'bg-white rounded-xl border p-6 space-y-4' },
+        h('h2', { className: 'font-semibold' }, t('familyConnections')),
+        spouse ? section(t('spouse'), [spouse], 'spouse') : null,
+        section(t('parents'), parents, 'parent'),
+        section(t('children'), children, 'child'),
+        section(t('siblings'), siblings, 'sibling'),
+        (!spouse && parents.length === 0 && children.length === 0 && siblings.length === 0) ? h('p', { className: 'text-sm text-gray-400' }, t('noConnections')) : null
+      )
+    )
+  );
+}
+
+function renderSearchView(slug) {
+  let query = '';
+  function doSearch() {
+    const q = query.toLowerCase();
+    const results = q ? state.members.filter(m => m.name.toLowerCase().includes(q) || (m.location || '').toLowerCase().includes(q)) : state.members;
+    const container = $('search-results');
+    if (container) {
+      container.innerHTML = '';
+      if (results.length === 0) {
+        container.appendChild(h('p', { className: 'text-center text-gray-500 py-8' }, t('noMembersFound')));
+      } else {
+        results.forEach(m => container.appendChild(renderMemberCard(m, slug)));
+      }
+      const count = $('result-count');
+      if (count) count.textContent = results.length + ' member' + (results.length !== 1 ? 's' : '');
+    }
+  }
+
+  return h('div', { className: 'min-h-screen bg-gray-50' },
+    renderHeader(slug),
+    h('div', { className: 'max-w-4xl mx-auto px-4 py-6 space-y-4' },
+      h('input', { type: 'text', placeholder: t('searchPlaceholder'), className: 'w-full h-10 px-4 rounded-lg border bg-white text-sm', onInput: (e) => { query = e.target.value; doSearch(); } }),
+      h('p', { id: 'result-count', className: 'text-sm text-gray-500' }, state.members.length + ' members'),
+      h('div', { id: 'search-results', className: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3' },
+        ...state.members.map(m => renderMemberCard(m, slug))
+      )
+    )
+  );
+}
+
+function renderPrintView(slug) {
+  return h('div', { className: 'min-h-screen bg-gray-50' },
+    renderHeader(slug),
+    h('div', { className: 'max-w-4xl mx-auto px-4 py-6 text-center' },
+      h('h1', { className: 'text-2xl font-bold' }, t('printFamilyTree')),
+      h('p', { className: 'text-gray-500 mt-2' }, 'PDF export available from the main Gentree app.'),
+      h('a', { href: '/print', className: 'inline-block mt-4 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700', style: { textDecoration: 'none' } }, t('goToPrintPage'))
+    )
+  );
+}
+
+// ---- Modals ----
+function guardEdit(slug, action) {
+  if (state.editMode) { action(); return; }
+  // Show PIN modal, then run action on success
+  showPinModal(slug, action);
+}
+
+function showTreeInfoModal(slug) {
+  const tree = state.tree || {};
+  const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
+    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-md mx-4 space-y-4', onClick: e => e.stopPropagation() },
+      h('h2', { className: 'text-lg font-bold' }, t('familyTreeInfo')),
+      h('label', { className: 'block text-sm font-medium text-gray-700' }, t('familyName')),
+      h('input', { id: 'tree-name', type: 'text', value: tree.name || '', className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('label', { className: 'block text-sm font-medium text-gray-700' }, t('originAncestralHome')),
+      h('input', { id: 'tree-origin', type: 'text', value: tree.origin || '', placeholder: t('originPlaceholder'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('label', { className: 'block text-sm font-medium text-gray-700' }, t('description')),
+      h('textarea', { id: 'tree-desc', placeholder: t('descPlaceholder'), className: 'w-full px-3 py-2 border rounded-lg text-sm', rows: '4' }, tree.description || ''),
+      h('div', { id: 'tree-info-error', className: 'text-sm text-red-500 hidden' }),
+      h('div', { className: 'flex gap-2' },
+        h('button', { className: 'flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700', onClick: async () => {
+          try {
+            const updates = {
+              name: $('tree-name').value.trim() || tree.name,
+              origin: $('tree-origin').value.trim() || null,
+              description: $('tree-desc').value.trim() || null,
+            };
+            await apiPut('/trees/' + slug, updates);
+            Object.assign(state.tree, updates);
+            overlay.remove();
+            render();
+          } catch (e) { $('tree-info-error').textContent = e.message; $('tree-info-error').classList.remove('hidden'); }
+        }}, t('save')),
+        h('button', { className: 'flex-1 border py-2 rounded-lg hover:bg-gray-50', onClick: () => overlay.remove() }, t('cancel'))
+      )
+    )
+  );
+  document.body.appendChild(overlay);
+}
+
+function showPinModal(slug, onSuccess) {
+  const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
+    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-xs mx-4 space-y-4', onClick: e => e.stopPropagation() },
+      h('h2', { className: 'text-lg font-bold text-center flex items-center justify-center gap-2' }, icons.lock(18), t('enterPin')),
+      h('div', { className: 'relative' },
+        h('input', { id: 'pin-input', type: 'password', inputMode: 'numeric', maxLength: '6', placeholder: 'PIN', className: 'w-full h-12 text-center text-2xl tracking-widest border rounded-lg pr-10' }),
+        h('button', { type: 'button', className: 'absolute right-3 top-1/2 text-gray-400 hover:text-gray-600', style: { transform: 'translateY(-50%)' }, onClick: (e) => {
+          const inp = $('pin-input');
+          inp.type = inp.type === 'password' ? 'text' : 'password';
+          const btn = e.currentTarget;
+          btn.innerHTML = '';
+          btn.appendChild(inp.type === 'password' ? icons.eye(18) : icons.eyeOff(18));
+        }}, icons.eye(18))
+      ),
+      h('div', { id: 'pin-error', className: 'text-sm text-red-500 text-center hidden' }),
+      h('button', { className: 'w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700', onClick: async () => {
+        const pin = $('pin-input').value;
+        if (pin.length < 4) return;
+        try {
+          const res = await apiPost('/trees/' + slug + '/verify-pin', { pin });
+          sessionStorage.setItem('gentree-edit-token', res.token);
+          state.editMode = true;
+          overlay.remove();
+          render();
+          if (onSuccess) onSuccess();
+        } catch (e) {
+          $('pin-error').textContent = e.message;
+          $('pin-error').classList.remove('hidden');
+        }
+      }}, t('unlock'))
+    )
+  );
+  document.body.appendChild(overlay);
+  setTimeout(() => $('pin-input')?.focus(), 50);
+}
+
+function showAddMemberModal(slug, relatedId, relType) {
+  const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
+    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4', onClick: e => e.stopPropagation() },
+      h('h2', { className: 'text-lg font-bold' }, relType === 'spouse' ? t('addSpouse') : relType === 'child' ? t('addChild') : relType === 'parent-of' ? t('addParent') : relType === 'sibling' ? t('addSibling') : t('addMember')),
+      h('input', { id: 'add-name', type: 'text', placeholder: t('fullName'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('div', { className: 'grid grid-cols-3 gap-2' },
+        ...['male','female','other'].map(g => h('button', { id: 'gender-' + g, className: 'py-2 rounded-lg border text-sm', onClick: (e) => {
+          document.querySelectorAll('[id^=gender-]').forEach(b => { b.className = 'py-2 rounded-lg border text-sm'; });
+          e.target.className = 'py-2 rounded-lg border text-sm bg-indigo-600 text-white border-indigo-600';
+          e.target.dataset.selected = 'true';
+        }}, t(g)))
+      ),
+      h('input', { id: 'add-yob', type: 'number', min: '1900', max: '2030', placeholder: t('yearOfBirth'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'add-location', type: 'text', placeholder: t('location'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'add-phone', type: 'tel', placeholder: t('phone'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'add-facebook', type: 'url', placeholder: t('facebookUrl'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('div', { id: 'add-error', className: 'text-sm text-red-500 hidden' }),
+      h('button', { className: 'w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700', onClick: async () => {
+        const name = $('add-name').value.trim();
+        const genderBtn = document.querySelector('[id^=gender-][data-selected=true]');
+        const gender = genderBtn ? genderBtn.id.replace('gender-', '') : 'other';
+        if (!name) { $('add-error').textContent = t('nameRequired'); $('add-error').classList.remove('hidden'); return; }
+        try {
+          const relatedMember = relatedId ? state.members.find(m => m.id === relatedId) : null;
+          const relatedGen = relatedMember ? relatedMember.generation : 0;
+          let generation = 0;
+          if (relType === 'child') generation = relatedGen + 1;
+          else if (relType === 'parent-of') generation = relatedGen - 1;
+          else if (relType === 'spouse' || relType === 'sibling') generation = relatedGen;
+
+          const res = await apiPost('/trees/' + slug + '/members', {
+            name, gender, generation,
+            dateOfBirth: $('add-yob').value ? $('add-yob').value + '-01-01' : undefined,
+            location: $('add-location').value || undefined,
+            phone: $('add-phone').value || undefined,
+            facebookUrl: $('add-facebook').value || undefined
+          });
+          state.members.push({ id: res.id, name, gender, generation, dateOfBirth: $('add-yob').value ? $('add-yob').value + '-01-01' : undefined, location: $('add-location').value || undefined });
+          if (relatedId && relType) {
+            // Determine D1 relationship type and direction
+            let dbType, fromId, toId;
+            if (relType === 'child') { dbType = 'parent'; fromId = relatedId; toId = res.id; }
+            else if (relType === 'parent-of') { dbType = 'parent'; fromId = res.id; toId = relatedId; }
+            else if (relType === 'spouse') { dbType = 'spouse'; fromId = relatedId; toId = res.id; }
+            else if (relType === 'sibling') { dbType = 'sibling'; fromId = relatedId; toId = res.id; }
+            const relRes = await apiPost('/trees/' + slug + '/relationships', {
+              type: dbType, fromMemberId: fromId, toMemberId: toId
+            });
+            state.relationships.push({ id: relRes.id, type: dbType, fromMemberId: fromId, toMemberId: toId });
+            // When adding a child, also link spouse as parent
+            if (relType === 'child') {
+              const spouse = getSpouse(relatedId);
+              if (spouse) {
+                const spouseRel = await apiPost('/trees/' + slug + '/relationships', {
+                  type: 'parent', fromMemberId: spouse.id, toMemberId: res.id
+                });
+                state.relationships.push({ id: spouseRel.id, type: 'parent', fromMemberId: spouse.id, toMemberId: res.id });
+              }
+            }
+          }
+          overlay.remove();
+          render();
+        } catch (e) { $('add-error').textContent = e.message; $('add-error').classList.remove('hidden'); }
+      }}, t('addMember'))
+    )
+  );
+  document.body.appendChild(overlay);
+  setTimeout(() => $('add-name')?.focus(), 50);
+}
+
+function showEditMemberModal(slug, member) {
+  const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
+    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 max-h-[80vh] overflow-y-auto', onClick: e => e.stopPropagation() },
+      h('h2', { className: 'text-lg font-bold' }, t('edit') + ' ' + tl(member.name)),
+      h('input', { id: 'edit-name', type: 'text', value: member.name, className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'edit-yob', type: 'number', min: '1900', max: '2030', value: member.dateOfBirth ? getYear(member.dateOfBirth) : '', placeholder: t('yearOfBirth'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'edit-yod', type: 'number', min: '1900', max: '2030', value: member.dateOfDeath ? getYear(member.dateOfDeath) : '', placeholder: t('yearOfDeath'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'edit-location', type: 'text', value: member.location || '', placeholder: t('location'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'edit-phone', type: 'tel', value: member.phone || '', placeholder: t('phone'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'edit-email', type: 'email', value: member.email || '', placeholder: t('email'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('input', { id: 'edit-facebook', type: 'url', value: member.facebookUrl || '', placeholder: t('facebookUrl'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      h('textarea', { id: 'edit-bio', placeholder: t('bio'), className: 'w-full px-3 py-2 border rounded-lg text-sm', rows: '3' }, member.bio || ''),
+      h('div', { id: 'edit-error', className: 'text-sm text-red-500 hidden' }),
+      h('div', { className: 'flex gap-2' },
+        h('button', { className: 'flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700', onClick: async () => {
+          try {
+            const updates = {
+              name: $('edit-name').value.trim(),
+              dateOfBirth: $('edit-yob').value ? $('edit-yob').value + '-01-01' : null,
+              dateOfDeath: $('edit-yod').value ? $('edit-yod').value + '-01-01' : null,
+              location: $('edit-location').value || null,
+              phone: $('edit-phone').value || null,
+              email: $('edit-email').value || null,
+              facebookUrl: $('edit-facebook').value || null,
+              bio: $('edit-bio').value || null,
+            };
+            await apiPut('/trees/' + slug + '/members/' + member.id, updates);
+            Object.assign(member, updates);
+            overlay.remove();
+            render();
+          } catch (e) { $('edit-error').textContent = e.message; $('edit-error').classList.remove('hidden'); }
+        }}, t('save')),
+        h('button', { className: 'px-4 py-2 rounded-lg border hover:bg-gray-50', onClick: () => overlay.remove() }, t('cancel'))
+      ),
+      h('div', { className: 'border-t pt-3 mt-2' },
+        h('button', { className: 'w-full text-sm text-red-500 hover:text-red-700 py-2 rounded-lg hover:bg-red-50', onClick: () => {
+          if (!confirm(t('removeConfirm').replace('{name}', member.name))) return;
+          apiDelete('/trees/' + slug + '/members/' + member.id).then(() => {
+            state.members = state.members.filter(m => m.id !== member.id);
+            state.relationships = state.relationships.filter(r => r.fromMemberId !== member.id && r.toMemberId !== member.id);
+            overlay.remove();
+            window.location.href = '/tree/' + slug;
+          }).catch(e => { $('edit-error').textContent = e.message; $('edit-error').classList.remove('hidden'); });
+        }}, icons.trash(14), ' ' + t('removeMember'))
+      )
+    )
+  );
+  document.body.appendChild(overlay);
+}
+
+// ---- Main render ----
+function render() {
+  const route = parseRoute();
+  app.innerHTML = '';
+
+  if (state.loading) {
+    app.appendChild(h('div', { style: { minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center' } },
+      h('div', { className: 'animate-spin', style: { width:'32px',height:'32px',border:'3px solid #e5e7eb',borderTopColor:'#4f46e5',borderRadius:'50%' } })
+    ));
+    return;
+  }
+
+  if (state.error) {
+    app.appendChild(h('div', { style: { minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center' } },
+      h('div', { className: 'text-center' },
+        h('p', { className: 'text-lg font-semibold' }, t('treeNotFound')),
+        h('p', { className: 'text-sm text-gray-500 mt-1' }, state.error),
+        h('a', { href: '/start', className: 'inline-block mt-4 bg-indigo-600 text-white px-4 py-2 rounded-lg', style: { textDecoration: 'none' } }, t('createTree'))
+      )
+    ));
+    return;
+  }
+
+  if (route.view === 'member') app.appendChild(renderMemberView(route.slug, route.memberId));
+  else if (route.view === 'search') app.appendChild(renderSearchView(route.slug));
+  else if (route.view === 'print') app.appendChild(renderPrintView(route.slug));
+  else app.appendChild(renderTreeView(route.slug));
+}
+
+// ---- Init ----
+async function init() {
+  const route = parseRoute();
+  if (!route.slug) {
+    window.location.href = '/tree';
+    return;
+  }
+  try {
+    const data = await apiGet('/trees/' + route.slug);
+    state.tree = data.tree;
+    state.members = data.members;
+    state.relationships = data.relationships;
+    state.loading = false;
+  } catch (e) {
+    state.loading = false;
+    state.error = e.message;
+  }
+  render();
+}
+
+init();
+window.addEventListener('popstate', render);
+</script>
+</body>
+</html>
