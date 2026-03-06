@@ -56,7 +56,7 @@ export interface FamilyStore {
   addComment: (comment: Comment) => void;
   getChildren: (memberId: string) => FamilyMember[];
   getParents: (memberId: string) => FamilyMember[];
-  getSpouse: (memberId: string) => FamilyMember | undefined;
+  getSpouses: (memberId: string) => FamilyMember[];
   getSiblings: (memberId: string) => FamilyMember[];
   getMemberById: (id: string) => FamilyMember | undefined;
 }

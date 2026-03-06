@@ -21,7 +21,6 @@ export function NodeContextMenu({ x, y, member, onClose }: NodeContextMenuProps)
   const [showEdit, setShowEdit] = useState(false);
   const [showAddChild, setShowAddChild] = useState(false);
   const [showAddSpouse, setShowAddSpouse] = useState(false);
-  const spouse = useFamilyStore((s) => s.getSpouse(member.id));
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -86,18 +85,16 @@ export function NodeContextMenu({ x, y, member, onClose }: NodeContextMenuProps)
             Add Child
           </button>
 
-          {!spouse && (
-            <button
-              className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
-              onClick={() => {
-                setShowAddSpouse(true);
-                onClose();
-              }}
-            >
-              <Heart className="h-4 w-4 text-gray-500" />
-              Add Spouse
-            </button>
-          )}
+          <button
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-gray-100 transition-colors"
+            onClick={() => {
+              setShowAddSpouse(true);
+              onClose();
+            }}
+          >
+            <Heart className="h-4 w-4 text-gray-500" />
+            Add Spouse
+          </button>
 
           <button
             className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-gray-100 transition-colors"

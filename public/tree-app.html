@@ -171,7 +171,7 @@ const translations = {
     linkToTree: 'Link to another tree', alsoIn: 'Also in', enterTreeSlug: 'Enter tree slug (e.g. sharma-482)',
     fetchingTree: 'Fetching tree...', selectMember: 'Select member from that tree',
     syncFromLinked: 'Sync info', synced: 'Synced!', unlinkTree: 'Unlink',
-    copyLink: 'Copy link', copyMessage: 'Copy message with link',
+    copyLink: 'Copy link', copyMessage: 'Copy message with link', scanQR: 'Scan to open tree',
   },
   te: {
     tree: 'వృక్షం', search: 'వెతుకు', print: 'ముద్రించు', editing: 'సవరిస్తున్నారు', edit: 'సవరించు',
@@ -202,7 +202,7 @@ const translations = {
     linkToTree: 'మరొక వృక్షానికి లింక్', alsoIn: 'ఇందులో కూడా', enterTreeSlug: 'ట్రీ స్లగ్ నమోదు చేయండి',
     fetchingTree: 'ట్రీ తెస్తున్నాము...', selectMember: 'ఆ ట్రీ నుండి సభ్యుడిని ఎంచుకోండి',
     syncFromLinked: 'సమాచారం సింక్', synced: 'సింక్ అయింది!', unlinkTree: 'అన్‌లింక్',
-    copyLink: 'లింక్ కాపీ చేయండి', copyMessage: 'లింక్‌తో సందేశం కాపీ చేయండి',
+    copyLink: 'లింక్ కాపీ చేయండి', copyMessage: 'లింక్‌తో సందేశం కాపీ చేయండి', scanQR: 'ట్రీ తెరవడానికి స్కాన్ చేయండి',
   },
   or: {
     tree: 'ବୃକ୍ଷ', search: 'ଖୋଜ', print: 'ଛାପ', editing: 'ସଂପାଦନା', edit: 'ସଂପାଦନ',
@@ -233,7 +233,7 @@ const translations = {
     linkToTree: 'ଅନ୍ୟ ବୃକ୍ଷକୁ ଲିଙ୍କ', alsoIn: 'ମଧ୍ୟ ଅଛନ୍ତି', enterTreeSlug: 'ବୃକ୍ଷ ସ୍ଲଗ ପ୍ରବେଶ କରନ୍ତୁ',
     fetchingTree: 'ବୃକ୍ଷ ଆଣୁଛି...', selectMember: 'ସେହି ବୃକ୍ଷରୁ ସଦସ୍ୟ ବାଛନ୍ତୁ',
     syncFromLinked: 'ସୂଚନା ସିଙ୍କ', synced: 'ସିଙ୍କ ହୋଇଗଲା!', unlinkTree: 'ଅନଲିଙ୍କ',
-    copyLink: 'ଲିଙ୍କ କପି', copyMessage: 'ଲିଙ୍କ ସହ ସନ୍ଦେଶ କପି',
+    copyLink: 'ଲିଙ୍କ କପି', copyMessage: 'ଲିଙ୍କ ସହ ସନ୍ଦେଶ କପି', scanQR: 'ବୃକ୍ଷ ଖୋଲିବା ପାଇଁ ସ୍କାନ କରନ୍ତୁ',
   }
 };
 
@@ -398,11 +398,20 @@ async function apiDelete(path) {
 // ---- State ----
 let state = { tree: null, members: [], relationships: [], comments: [], loading: true, error: null, editMode: !!getToken() };
 
-function getSpouse(memberId) {
-  const rel = state.relationships.find(r => r.type === 'spouse' && (r.fromMemberId === memberId || r.toMemberId === memberId));
-  if (!rel) return null;
-  const spouseId = rel.fromMemberId === memberId ? rel.toMemberId : rel.fromMemberId;
-  return state.members.find(m => m.id === spouseId) || null;
+function getSpouses(memberId) {
+  const spouseIdSet = new Set();
+  // Explicit spouse relationships
+  state.relationships
+    .filter(r => r.type === 'spouse' && (r.fromMemberId === memberId || r.toMemberId === memberId))
+    .forEach(r => spouseIdSet.add(r.fromMemberId === memberId ? r.toMemberId : r.fromMemberId));
+  // Infer co-parents as spouses (two people who are both parents of the same child)
+  const myChildIds = state.relationships.filter(r => r.type === 'parent' && r.fromMemberId === memberId).map(r => r.toMemberId);
+  for (const childId of myChildIds) {
+    state.relationships
+      .filter(r => r.type === 'parent' && r.toMemberId === childId && r.fromMemberId !== memberId)
+      .forEach(r => spouseIdSet.add(r.fromMemberId));
+  }
+  return state.members.filter(m => spouseIdSet.has(m.id));
 }
 // Get full sibling group (transitive sibling walk + shared parents), returns Set of IDs excluding input
 function _siblingGroup(memberId) {
@@ -637,11 +646,16 @@ function buildFamilyTree(slug) {
   state.relationships.filter(r => r.type === 'parent').forEach(r => hasParent.add(r.toMemberId));
   let roots = state.members.filter(m => !hasParent.has(m.id));
 
-  // Build spouse map from explicit spouse relationships + co-parents (two people who are both parents of the same child)
+  // Build spouse map (array of spouse IDs per member) from explicit spouse relationships + co-parents
   const spouseMap = {};
+  function addSpouseMapping(a, b) {
+    if (!spouseMap[a]) spouseMap[a] = [];
+    if (!spouseMap[a].includes(b)) spouseMap[a].push(b);
+    if (!spouseMap[b]) spouseMap[b] = [];
+    if (!spouseMap[b].includes(a)) spouseMap[b].push(a);
+  }
   state.relationships.filter(r => r.type === 'spouse').forEach(r => {
-    spouseMap[r.fromMemberId] = r.toMemberId;
-    spouseMap[r.toMemberId] = r.fromMemberId;
+    addSpouseMapping(r.fromMemberId, r.toMemberId);
   });
   // Infer co-parent couples: if two members are both parents of the same child, treat as couple
   const parentsByChild = {};
@@ -649,9 +663,8 @@ function buildFamilyTree(slug) {
     (parentsByChild[r.toMemberId] = parentsByChild[r.toMemberId] || []).push(r.fromMemberId);
   });
   Object.values(parentsByChild).forEach(parents => {
-    if (parents.length === 2 && !spouseMap[parents[0]]) {
-      spouseMap[parents[0]] = parents[1];
-      spouseMap[parents[1]] = parents[0];
+    if (parents.length === 2) {
+      addSpouseMapping(parents[0], parents[1]);
     }
   });
 
@@ -664,15 +677,28 @@ function buildFamilyTree(slug) {
     const member = state.members.find(m => m.id === memberId);
     if (!member) return null;
 
-    const spouseId = spouseMap[memberId];
-    const spouse = spouseId ? state.members.find(m => m.id === spouseId) : null;
-    if (spouse) rendered.add(spouse.id);
+    // Transitively collect all spouses (e.g. if A married B and C, B and C both appear with A)
+    const allSpouseIds = new Set();
+    const spouseQueue = [memberId];
+    const spouseVisited = new Set([memberId]);
+    while (spouseQueue.length) {
+      const cur = spouseQueue.shift();
+      for (const sid of (spouseMap[cur] || [])) {
+        if (!spouseVisited.has(sid)) {
+          spouseVisited.add(sid);
+          allSpouseIds.add(sid);
+          spouseQueue.push(sid);
+        }
+      }
+    }
+    const spouseMembers = [...allSpouseIds].filter(id => !rendered.has(id)).map(id => state.members.find(m => m.id === id)).filter(Boolean);
+    spouseMembers.forEach(s => rendered.add(s.id));
 
     // Get children: direct children + their siblings (so sibling-linked members appear at the same level)
     const directChildIds = new Set();
     state.relationships.filter(r => r.type === 'parent' && r.fromMemberId === memberId).forEach(r => directChildIds.add(r.toMemberId));
-    if (spouse) {
-      state.relationships.filter(r => r.type === 'parent' && r.fromMemberId === spouse.id).forEach(r => directChildIds.add(r.toMemberId));
+    for (const sp of spouseMembers) {
+      state.relationships.filter(r => r.type === 'parent' && r.fromMemberId === sp.id).forEach(r => directChildIds.add(r.toMemberId));
     }
     const childIds = new Set(directChildIds);
     for (const cid of directChildIds) {
@@ -690,13 +716,17 @@ function buildFamilyTree(slug) {
     const childSubtrees = sortedChildIds.map(cid => renderSubtree(cid)).filter(Boolean);
 
     // Build the couple node
-    const coupleNode = spouse
-      ? h('div', { className: 'tree-couple' },
-          renderLeafNode(member, slug),
-          h('div', { className: 'couple-link' }, icons.heart(14)),
-          renderLeafNode(spouse, slug)
-        )
-      : renderLeafNode(member, slug);
+    let coupleNode;
+    if (spouseMembers.length > 0) {
+      const parts = [renderLeafNode(member, slug)];
+      for (const sp of spouseMembers) {
+        parts.push(h('div', { className: 'couple-link' }, icons.heart(14)));
+        parts.push(renderLeafNode(sp, slug));
+      }
+      coupleNode = h('div', { className: 'tree-couple' }, ...parts);
+    } else {
+      coupleNode = renderLeafNode(member, slug);
+    }
 
     if (childSubtrees.length === 0) {
       return h('div', { className: 'tree-node-group' }, coupleNode);
@@ -738,13 +768,22 @@ function buildFamilyTree(slug) {
     roots = state.members.filter(m => m.generation === minGen);
   }
 
-  // Group root spouses to avoid duplicates
+  // Group root spouses to avoid duplicates (transitively collect all spouses)
   const rootGroups = [];
   const rootRendered = new Set();
   for (const r of roots) {
     if (rootRendered.has(r.id)) continue;
     rootRendered.add(r.id);
-    if (spouseMap[r.id]) rootRendered.add(spouseMap[r.id]);
+    const queue = [r.id];
+    while (queue.length) {
+      const cur = queue.shift();
+      for (const sid of (spouseMap[cur] || [])) {
+        if (!rootRendered.has(sid)) {
+          rootRendered.add(sid);
+          queue.push(sid);
+        }
+      }
+    }
     rootGroups.push(r.id);
   }
 
@@ -894,7 +933,7 @@ function renderMemberView(slug, memberId) {
     );
   }
 
-  const spouse = getSpouse(memberId);
+  const spouses = getSpouses(memberId);
   const parents = getParents(memberId);
   const children = getChildren(memberId);
   const siblings = getSiblings(memberId);
@@ -980,16 +1019,23 @@ function renderMemberView(slug, memberId) {
           h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'child')) }, icons.baby(14), ' ' + t('addChild')),
           h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'parent-of')) }, icons.parent(14), ' ' + t('addParent')),
           h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'sibling')) }, icons.users(14), ' ' + t('addSibling')),
-          !spouse ? h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'spouse')) }, icons.heart(14), ' ' + t('addSpouse')) : null
+          h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'spouse')) }, icons.heart(14), ' ' + t('addSpouse')),
+          h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => {
+            const memberUrl = window.location.origin + '/tree/' + slug + '/member/' + member.id;
+            const memberShareText = tlName(member) + ' — ' + (state.tree?.name || '') + ' ' + t('familyTree');
+            const memberWaUrl = 'https://wa.me/?text=' + encodeURIComponent(memberShareText + '\n' + memberUrl);
+            if (navigator.share) { navigator.share({ title: memberShareText, text: memberShareText, url: memberUrl }).catch(() => {}); }
+            else { showShareMenu(memberShareText, memberUrl, memberWaUrl); }
+          }}, icons.share(14), ' ' + t('share'))
         )
       ),
       h('div', { className: 'bg-white rounded-xl border p-6 space-y-4' },
         h('h2', { className: 'font-semibold' }, t('familyConnections')),
-        spouse ? section(t('spouse'), [spouse], 'spouse') : null,
+        spouses.length > 0 ? section(spouses.length > 1 ? t('spouse') + 's' : t('spouse'), spouses, 'spouse') : null,
         section(t('parents'), parents, 'parent'),
         section(t('children'), children, 'child'),
         section(t('siblings'), siblings, 'sibling'),
-        (!spouse && parents.length === 0 && children.length === 0 && siblings.length === 0) ? h('p', { className: 'text-sm text-gray-400' }, t('noConnections')) : null
+        (spouses.length === 0 && parents.length === 0 && children.length === 0 && siblings.length === 0) ? h('p', { className: 'text-sm text-gray-400' }, t('noConnections')) : null
       ),
       // Linked trees section (loaded async)
       renderLinkedTrees(slug, memberId)
@@ -1247,34 +1293,197 @@ function showTreeInfoModal(slug) {
   document.body.appendChild(overlay);
 }
 
-function showShareMenu(shareText, treeUrl, whatsappUrl) {
+// Minimal QR code generator (numeric mode, version auto-detect)
+function generateQR(canvas, text) {
+  // Use a simple approach: render via an image from QR API served from our own worker
+  // Fallback: generate a basic QR pattern on canvas
+  const size = canvas.width;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+
+  // Generate QR matrix using simple encoding
+  const modules = qrEncode(text);
+  if (!modules) return;
+  const modCount = modules.length;
+  const cellSize = Math.floor(size / (modCount + 8)); // padding
+  const offset = Math.floor((size - cellSize * modCount) / 2);
+  ctx.fillStyle = '#000';
+  for (let r = 0; r < modCount; r++) {
+    for (let c = 0; c < modCount; c++) {
+      if (modules[r][c]) {
+        ctx.fillRect(offset + c * cellSize, offset + r * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+}
+
+// QR Code encoder (byte mode, ECC level L, versions 1-10)
+function qrEncode(text) {
+  const data = new TextEncoder().encode(text);
+  const len = data.length;
+  // Version capacity table (byte mode, ECC L): [version, modules, dataCodewords]
+  const versions = [
+    [1,21,17],[2,25,32],[3,29,53],[4,33,78],[5,37,106],[6,41,134],
+    [7,45,154],[8,49,192],[9,53,230],[10,57,271],[11,61,311],[12,65,367],
+    [13,69,425],[14,73,458],[15,77,520],[16,81,586]
+  ];
+  let ver = null;
+  for (const v of versions) { if (len <= v[2] - 3) { ver = v; break; } }
+  if (!ver) return null; // too long
+
+  const size = ver[1];
+  const grid = Array.from({length: size}, () => Array(size).fill(null));
+  const reserved = Array.from({length: size}, () => Array(size).fill(false));
+
+  function setModule(r, c, val, isReserved) {
+    if (r >= 0 && r < size && c >= 0 && c < size) {
+      grid[r][c] = val ? 1 : 0;
+      if (isReserved) reserved[r][c] = true;
+    }
+  }
+
+  // Finder patterns
+  function finderPattern(row, col) {
+    for (let r = -1; r <= 7; r++) {
+      for (let c = -1; c <= 7; c++) {
+        const inOuter = r === -1 || r === 7 || c === -1 || c === 7;
+        const inBorder = r === 0 || r === 6 || c === 0 || c === 6;
+        const inInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+        const val = !inOuter && (inBorder || inInner);
+        setModule(row + r, col + c, val, true);
+      }
+    }
+  }
+  finderPattern(0, 0);
+  finderPattern(0, size - 7);
+  finderPattern(size - 7, 0);
+
+  // Timing patterns
+  for (let i = 8; i < size - 8; i++) {
+    setModule(6, i, i % 2 === 0, true);
+    setModule(i, 6, i % 2 === 0, true);
+  }
+
+  // Alignment patterns (for version >= 2)
+  if (ver[0] >= 2) {
+    const positions = [6, ver[1] - 7];
+    if (ver[0] >= 7) positions.splice(1, 0, Math.floor((positions[0] + positions[1]) / 2));
+    for (const r of positions) {
+      for (const c of positions) {
+        if (reserved[r]?.[c]) continue;
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -2; dc <= 2; dc++) {
+            const val = Math.abs(dr) === 2 || Math.abs(dc) === 2 || (dr === 0 && dc === 0);
+            setModule(r + dr, c + dc, val, true);
+          }
+        }
+      }
+    }
+  }
+
+  // Dark module + reserved areas
+  setModule(size - 8, 8, true, true);
+  // Reserve format info areas
+  for (let i = 0; i < 9; i++) { reserved[8][i] = true; reserved[i][8] = true; }
+  for (let i = 0; i < 8; i++) { reserved[8][size - 1 - i] = true; reserved[size - 1 - i][8] = true; }
+  // Reserve version info for v >= 7
+  if (ver[0] >= 7) {
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
+      reserved[i][size - 11 + j] = true;
+      reserved[size - 11 + j][i] = true;
+    }
+  }
+
+  // Encode data: byte mode indicator (0100) + char count + data + terminator + padding
+  const totalBits = ver[2] * 8;
+  const bits = [];
+  function pushBits(val, count) { for (let i = count - 1; i >= 0; i--) bits.push((val >> i) & 1); }
+  pushBits(0b0100, 4); // byte mode
+  pushBits(len, ver[0] <= 9 ? 8 : 16); // char count
+  for (const b of data) pushBits(b, 8);
+  pushBits(0, Math.min(4, totalBits - bits.length)); // terminator
+  while (bits.length % 8) bits.push(0); // byte align
+  const padBytes = [0xEC, 0x11];
+  let pi = 0;
+  while (bits.length < totalBits) { pushBits(padBytes[pi % 2], 8); pi++; }
+
+  // Place data bits (skip reserved modules, upward columns)
+  let bitIdx = 0;
+  for (let right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5; // skip timing column
+    for (let vert = 0; vert < size; vert++) {
+      for (let j = 0; j < 2; j++) {
+        const col = right - j;
+        const upward = ((Math.floor((size - 1 - right) / 2)) % 2 === 0);
+        const row = upward ? size - 1 - vert : vert;
+        if (col < 0 || col >= size || row < 0 || row >= size) continue;
+        if (reserved[row][col]) continue;
+        grid[row][col] = bitIdx < bits.length ? bits[bitIdx] : 0;
+        bitIdx++;
+      }
+    }
+  }
+
+  // Apply mask 0 (checkerboard) and format info
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (!reserved[r][c] && (r + c) % 2 === 0) {
+        grid[r][c] ^= 1;
+      }
+    }
+  }
+
+  // Write format info for mask 0, ECC L
+  const formatBits = [1,1,1,0,1,1,1,1,1,0,0,0,1,0,0]; // ECC L, mask 0
+  for (let i = 0; i < 15; i++) {
+    const bit = formatBits[i];
+    // Around top-left finder
+    if (i < 6) setModule(8, i, bit, false);
+    else if (i < 8) setModule(8, i + 1, bit, false);
+    else if (i < 9) setModule(8 - (i - 8), 8, bit, false);
+    else setModule(14 - i, 8, bit, false);
+    // Other copy
+    if (i < 8) setModule(size - 1 - i, 8, bit, false);
+    else setModule(8, size - 15 + i, bit, false);
+  }
+
+  return grid;
+}
+
+function showShareMenu(shareText, shareUrl, whatsappUrl) {
+  function showToast(msg) {
+    const toast = h('div', { className: 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg flex items-center gap-2' }, icons.check(14), ' ' + msg);
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+
+  // QR code via canvas
+  const qrContainer = h('div', { className: 'flex flex-col items-center gap-2 py-2' });
+  const qrCanvas = document.createElement('canvas');
+  qrCanvas.width = 160; qrCanvas.height = 160;
+  qrContainer.appendChild(qrCanvas);
+  qrContainer.appendChild(h('p', { className: 'text-xs text-gray-400' }, t('scanQR')));
+  generateQR(qrCanvas, shareUrl);
+
   const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
-    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-xs mx-4 space-y-3', onClick: e => e.stopPropagation() },
+    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-xs mx-4 space-y-3 max-h-[85vh] overflow-y-auto', onClick: e => e.stopPropagation() },
       h('h2', { className: 'text-lg font-bold flex items-center gap-2' }, icons.share(18), ' ' + t('share')),
+      // QR code
+      qrContainer,
       // Copy link
       h('button', { className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-gray-50 flex items-center gap-2', onClick: () => {
-        navigator.clipboard.writeText(treeUrl).then(() => {
-          overlay.remove();
-          // Show brief toast
-          const toast = h('div', { className: 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg' }, icons.check(14), ' ' + t('linkCopied'));
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 2000);
-        });
+        navigator.clipboard.writeText(shareUrl).then(() => { overlay.remove(); showToast(t('linkCopied')); });
       }}, icons.link(16), ' ' + t('copyLink')),
       // Copy message (text + URL)
       h('button', { className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-gray-50 flex items-center gap-2', onClick: () => {
-        navigator.clipboard.writeText(shareText + '\n' + treeUrl).then(() => {
-          overlay.remove();
-          const toast = h('div', { className: 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg' }, icons.check(14), ' ' + t('linkCopied'));
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 2000);
-        });
+        navigator.clipboard.writeText(shareText + '\n' + shareUrl).then(() => { overlay.remove(); showToast(t('linkCopied')); });
       }}, icons.mail(16), ' ' + t('copyMessage')),
       // WhatsApp
       h('a', { href: whatsappUrl, target: '_blank', className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-green-50 flex items-center gap-2', style: { textDecoration: 'none', color: 'inherit' }, onClick: () => overlay.remove() },
         h('span', { style: { color: '#25D366', fontWeight: 'bold' } }, 'W'), ' WhatsApp'),
       // Email
-      h('a', { href: 'mailto:?subject=' + encodeURIComponent(shareText) + '&body=' + encodeURIComponent(shareText + '\n' + treeUrl), className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-gray-50 flex items-center gap-2', style: { textDecoration: 'none', color: 'inherit' }, onClick: () => overlay.remove() },
+      h('a', { href: 'mailto:?subject=' + encodeURIComponent(shareText) + '&body=' + encodeURIComponent(shareText + '\n' + shareUrl), className: 'w-full text-left text-sm px-3 py-2.5 rounded-lg border hover:bg-gray-50 flex items-center gap-2', style: { textDecoration: 'none', color: 'inherit' }, onClick: () => overlay.remove() },
         icons.mail(16), ' ' + t('email')),
       // Cancel
       h('button', { className: 'w-full text-sm text-gray-500 py-2', onClick: () => overlay.remove() }, t('cancel'))
@@ -1417,12 +1626,12 @@ function showAddMemberModal(slug, relatedId, relType) {
     });
     state.relationships.push({ id: relRes.id, type: dbType, fromMemberId: fromId, toMemberId: toId });
     if (relType === 'child') {
-      const spouse = getSpouse(relatedId);
-      if (spouse) {
+      const spouseList = getSpouses(relatedId);
+      for (const sp of spouseList) {
         const spouseRel = await apiPost('/trees/' + slug + '/relationships', {
-          type: 'parent', fromMemberId: spouse.id, toMemberId: memberId
+          type: 'parent', fromMemberId: sp.id, toMemberId: memberId
         });
-        state.relationships.push({ id: spouseRel.id, type: 'parent', fromMemberId: spouse.id, toMemberId: memberId });
+        state.relationships.push({ id: spouseRel.id, type: 'parent', fromMemberId: sp.id, toMemberId: memberId });
       }
     }
   }

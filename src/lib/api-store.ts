@@ -34,7 +34,7 @@ interface ApiStore {
   // Derived data helpers
   getChildren: (memberId: string) => FamilyMember[];
   getParents: (memberId: string) => FamilyMember[];
-  getSpouse: (memberId: string) => FamilyMember | undefined;
+  getSpouses: (memberId: string) => FamilyMember[];
   getSiblings: (memberId: string) => FamilyMember[];
   getMemberById: (id: string) => FamilyMember | undefined;
 }
@@ -144,33 +144,49 @@ export const useApiStore = create<ApiStore>()((set, get) => ({
     return members.filter((m) => parentIds.includes(m.id));
   },
 
-  getSpouse: (memberId: string) => {
+  getSpouses: (memberId: string) => {
     const { members, relationships } = get();
-    const spouseRel = relationships.find(
-      (r) =>
-        r.type === 'spouse' &&
-        (r.fromMemberId === memberId || r.toMemberId === memberId)
-    );
-    if (!spouseRel) return undefined;
-    const spouseId =
-      spouseRel.fromMemberId === memberId
-        ? spouseRel.toMemberId
-        : spouseRel.fromMemberId;
-    return members.find((m) => m.id === spouseId);
+    const spouseIdSet = new Set<string>();
+    // Explicit spouse relationships
+    relationships
+      .filter(
+        (r) =>
+          r.type === 'spouse' &&
+          (r.fromMemberId === memberId || r.toMemberId === memberId)
+      )
+      .forEach((r) =>
+        spouseIdSet.add(r.fromMemberId === memberId ? r.toMemberId : r.fromMemberId)
+      );
+    // Infer co-parents as spouses
+    const myChildIds = relationships
+      .filter((r) => r.type === 'parent' && r.fromMemberId === memberId)
+      .map((r) => r.toMemberId);
+    for (const childId of myChildIds) {
+      relationships
+        .filter((r) => r.type === 'parent' && r.toMemberId === childId && r.fromMemberId !== memberId)
+        .forEach((r) => spouseIdSet.add(r.fromMemberId));
+    }
+    return members.filter((m) => spouseIdSet.has(m.id));
   },
 
   getSiblings: (memberId: string) => {
     const { members, relationships } = get();
-    const siblingIds = relationships
-      .filter(
-        (r) =>
-          r.type === 'sibling' &&
-          (r.fromMemberId === memberId || r.toMemberId === memberId)
-      )
-      .map((r) =>
-        r.fromMemberId === memberId ? r.toMemberId : r.fromMemberId
-      );
-    return members.filter((m) => siblingIds.includes(m.id));
+    // Derive siblings from shared parents (anyone with a common parent)
+    const parentIds = relationships
+      .filter((r) => r.type === 'parent' && r.toMemberId === memberId)
+      .map((r) => r.fromMemberId);
+    if (parentIds.length === 0) return [];
+    const siblingIds = new Set(
+      relationships
+        .filter(
+          (r) =>
+            r.type === 'parent' &&
+            parentIds.includes(r.fromMemberId) &&
+            r.toMemberId !== memberId
+        )
+        .map((r) => r.toMemberId)
+    );
+    return members.filter((m) => siblingIds.has(m.id));
   },
 
   getMemberById: (id: string) => {

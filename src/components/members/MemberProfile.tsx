@@ -25,7 +25,7 @@ interface MemberProfileProps {
 
 export function MemberProfile({ member }: MemberProfileProps) {
   const getParents = useFamilyStore((s) => s.getParents);
-  const getSpouse = useFamilyStore((s) => s.getSpouse);
+  const getSpouses = useFamilyStore((s) => s.getSpouses);
   const getChildren = useFamilyStore((s) => s.getChildren);
   const getSiblings = useFamilyStore((s) => s.getSiblings);
   const members = useFamilyStore((s) => s.members);
@@ -35,7 +35,7 @@ export function MemberProfile({ member }: MemberProfileProps) {
   const [showAddSpouse, setShowAddSpouse] = useState(false);
 
   const parents = useMemo(() => getParents(member.id), [getParents, member.id, members, relationships]);
-  const spouse = useMemo(() => getSpouse(member.id), [getSpouse, member.id, members, relationships]);
+  const spouses = useMemo(() => getSpouses(member.id), [getSpouses, member.id, members, relationships]);
   const children = useMemo(() => getChildren(member.id), [getChildren, member.id, members, relationships]);
   const siblings = useMemo(() => getSiblings(member.id), [getSiblings, member.id, members, relationships]);
   const age = calculateAge(member.dateOfBirth, member.dateOfDeath);
@@ -70,11 +70,9 @@ export function MemberProfile({ member }: MemberProfileProps) {
             <Button variant="outline" size="sm" onClick={() => setShowAddChild(true)}>
               <Baby className="h-4 w-4 mr-1" /> Add Child
             </Button>
-            {!spouse && (
-              <Button variant="outline" size="sm" onClick={() => setShowAddSpouse(true)}>
-                <Heart className="h-4 w-4 mr-1" /> Add Spouse
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setShowAddSpouse(true)}>
+              <Heart className="h-4 w-4 mr-1" /> Add Spouse
+            </Button>
             <WhatsAppShareButton memberName={member.name} phoneNumber={member.phone} />
           </div>
         </CardContent>
@@ -133,10 +131,14 @@ export function MemberProfile({ member }: MemberProfileProps) {
             <Users className="h-5 w-5" /> Family Connections
           </h2>
 
-          {spouse && (
+          {spouses.length > 0 && (
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Spouse</p>
-              <MemberLink member={spouse} />
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{spouses.length > 1 ? 'Spouses' : 'Spouse'}</p>
+              <div className="space-y-1">
+                {spouses.map((s) => (
+                  <MemberLink key={s.id} member={s} />
+                ))}
+              </div>
             </div>
           )}
 
