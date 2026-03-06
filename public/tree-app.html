@@ -103,6 +103,20 @@ tailwind.config = {
   .tree-toggle:hover { background: #f0fdf4; transform: scale(1.15); }
   .tree-toggle.collapsed { color: #6b7280; border-color: #d1d5db; }
   .tree-children-wrap.collapsed { display: none; }
+  /* Typeahead dropdown */
+  .typeahead-wrap { position: relative; }
+  .typeahead-list {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 60;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+    max-height: 180px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    margin-top: 2px;
+  }
+  .typeahead-list:empty { display: none; }
+  .typeahead-item {
+    padding: 8px 12px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .typeahead-item:hover, .typeahead-item.active { background: #f0f0ff; }
+  .typeahead-item .ta-meta { font-size: 11px; color: #94a3b8; }
 </style>
 </head>
 <body>
@@ -153,6 +167,7 @@ const translations = {
     language: 'Language', share: 'Share', linkCopied: 'Link copied!',
     removeRelationship: 'Remove', removeRelConfirm: 'Remove {type} relationship with {name}?',
     collapse: 'Collapse', expand: 'Expand',
+    linkExisting: 'Link existing member', orCreateNew: 'or type a new name',
   },
   te: {
     tree: 'వృక్షం', search: 'వెతుకు', print: 'ముద్రించు', editing: 'సవరిస్తున్నారు', edit: 'సవరించు',
@@ -179,6 +194,7 @@ const translations = {
     language: 'భాష', share: 'పంచుకో', linkCopied: 'లింక్ కాపీ అయింది!',
     removeRelationship: 'తొలగించు', removeRelConfirm: '{name}తో {type} సంబంధాన్ని తొలగించాలా?',
     collapse: 'కుదించు', expand: 'విస్తరించు',
+    linkExisting: 'ఇప్పటికే ఉన్న సభ్యుడిని లింక్ చేయండి', orCreateNew: 'లేదా కొత్త పేరు టైప్ చేయండి',
   },
   or: {
     tree: 'ବୃକ୍ଷ', search: 'ଖୋଜ', print: 'ଛାପ', editing: 'ସଂପାଦନା', edit: 'ସଂପାଦନ',
@@ -205,6 +221,7 @@ const translations = {
     language: 'ଭାଷା', share: 'ଶେୟାର', linkCopied: 'ଲିଙ୍କ କପି ହୋଇଗଲା!',
     removeRelationship: 'ହଟାନ୍ତୁ', removeRelConfirm: '{name}ଙ୍କ ସହ {type} ସଂପର୍କ ହଟାଇବେ?',
     collapse: 'ସଙ୍କୁଚିତ', expand: 'ବିସ୍ତାର',
+    linkExisting: 'ବିଦ୍ୟମାନ ସଦସ୍ୟଙ୍କୁ ଲିଙ୍କ କରନ୍ତୁ', orCreateNew: 'କିମ୍ବା ନୂଆ ନାମ ଟାଇପ କରନ୍ତୁ',
   }
 };
 
@@ -1066,64 +1083,147 @@ function showPinModal(slug, onSuccess) {
 }
 
 function showAddMemberModal(slug, relatedId, relType) {
+  let selectedExisting = null; // if set, link to this member instead of creating new
+
+  // Typeahead dropdown
+  const taList = h('div', { className: 'typeahead-list' });
+  const nameInput = h('input', { id: 'add-name', type: 'text', placeholder: t('fullName') + ' — ' + t('orCreateNew'), className: 'w-full h-10 px-3 border rounded-lg text-sm' });
+  const taWrap = h('div', { className: 'typeahead-wrap' }, nameInput, taList);
+  const linkedBadge = h('div', { id: 'linked-badge', className: 'hidden flex items-center gap-2 text-sm bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg' });
+  const newFields = h('div', { id: 'new-member-fields', className: 'space-y-3' },
+    h('div', { className: 'grid grid-cols-3 gap-2' },
+      ...['male','female','other'].map(g => h('button', { id: 'gender-' + g, className: 'py-2 rounded-lg border text-sm', onClick: (e) => {
+        document.querySelectorAll('[id^=gender-]').forEach(b => { b.className = 'py-2 rounded-lg border text-sm'; });
+        e.target.className = 'py-2 rounded-lg border text-sm bg-indigo-600 text-white border-indigo-600';
+        e.target.dataset.selected = 'true';
+      }}, t(g)))
+    ),
+    h('input', { id: 'add-yob', type: 'number', min: '1900', max: '2030', placeholder: t('yearOfBirth'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+    h('input', { id: 'add-location', type: 'text', placeholder: t('location'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+    h('input', { id: 'add-phone', type: 'tel', placeholder: t('phone'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+    h('input', { id: 'add-facebook', type: 'url', placeholder: t('facebookUrl'), className: 'w-full h-10 px-3 border rounded-lg text-sm' })
+  );
+
+  function selectExisting(member) {
+    selectedExisting = member;
+    nameInput.value = member.name;
+    taList.innerHTML = '';
+    newFields.classList.add('hidden');
+    linkedBadge.innerHTML = '';
+    linkedBadge.appendChild(document.createTextNode(t('linkExisting') + ': ' + member.name));
+    const clearBtn = h('button', { className: 'text-indigo-500 hover:text-indigo-700 text-xs underline', onClick: () => {
+      selectedExisting = null;
+      nameInput.value = '';
+      nameInput.focus();
+      linkedBadge.classList.add('hidden');
+      newFields.classList.remove('hidden');
+    }}, t('cancel'));
+    linkedBadge.appendChild(clearBtn);
+    linkedBadge.classList.remove('hidden');
+  }
+
+  function updateTypeahead() {
+    const q = nameInput.value.trim().toLowerCase();
+    taList.innerHTML = '';
+    if (!q || selectedExisting) return;
+    // Exclude the member we're adding a relationship from
+    const matches = state.members.filter(m => m.id !== relatedId && m.name.toLowerCase().includes(q)).slice(0, 6);
+    matches.forEach(m => {
+      const meta = [m.dateOfBirth ? 'b.' + getYear(m.dateOfBirth) : '', m.location || ''].filter(Boolean).join(' · ');
+      const item = h('div', { className: 'typeahead-item', onClick: () => selectExisting(m) },
+        h('span', null, m.name),
+        meta ? h('span', { className: 'ta-meta' }, meta) : null
+      );
+      taList.appendChild(item);
+    });
+  }
+
+  nameInput.addEventListener('input', () => {
+    if (selectedExisting) {
+      selectedExisting = null;
+      linkedBadge.classList.add('hidden');
+      newFields.classList.remove('hidden');
+    }
+    updateTypeahead();
+  });
+  nameInput.addEventListener('keydown', (e) => {
+    const items = taList.querySelectorAll('.typeahead-item');
+    if (!items.length) return;
+    const active = taList.querySelector('.typeahead-item.active');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? active.nextElementSibling || items[0] : items[0];
+      items.forEach(i => i.classList.remove('active'));
+      next.classList.add('active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active ? active.previousElementSibling || items[items.length - 1] : items[items.length - 1];
+      items.forEach(i => i.classList.remove('active'));
+      prev.classList.add('active');
+    } else if (e.key === 'Enter' && active) {
+      e.preventDefault();
+      active.click();
+    }
+  });
+  // Close typeahead on outside click
+  nameInput.addEventListener('blur', () => { setTimeout(() => { taList.innerHTML = ''; }, 200); });
+
+  async function linkRelationship(memberId) {
+    if (!relatedId || !relType) return;
+    let dbType, fromId, toId;
+    if (relType === 'child') { dbType = 'parent'; fromId = relatedId; toId = memberId; }
+    else if (relType === 'parent-of') { dbType = 'parent'; fromId = memberId; toId = relatedId; }
+    else if (relType === 'spouse') { dbType = 'spouse'; fromId = relatedId; toId = memberId; }
+    else if (relType === 'sibling') { dbType = 'sibling'; fromId = relatedId; toId = memberId; }
+    const relRes = await apiPost('/trees/' + slug + '/relationships', {
+      type: dbType, fromMemberId: fromId, toMemberId: toId
+    });
+    state.relationships.push({ id: relRes.id, type: dbType, fromMemberId: fromId, toMemberId: toId });
+    if (relType === 'child') {
+      const spouse = getSpouse(relatedId);
+      if (spouse) {
+        const spouseRel = await apiPost('/trees/' + slug + '/relationships', {
+          type: 'parent', fromMemberId: spouse.id, toMemberId: memberId
+        });
+        state.relationships.push({ id: spouseRel.id, type: 'parent', fromMemberId: spouse.id, toMemberId: memberId });
+      }
+    }
+  }
+
   const overlay = h('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
-    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4', onClick: e => e.stopPropagation() },
+    h('div', { className: 'bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 max-h-[80vh] overflow-y-auto', onClick: e => e.stopPropagation() },
       h('h2', { className: 'text-lg font-bold' }, relType === 'spouse' ? t('addSpouse') : relType === 'child' ? t('addChild') : relType === 'parent-of' ? t('addParent') : relType === 'sibling' ? t('addSibling') : t('addMember')),
-      h('input', { id: 'add-name', type: 'text', placeholder: t('fullName'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
-      h('div', { className: 'grid grid-cols-3 gap-2' },
-        ...['male','female','other'].map(g => h('button', { id: 'gender-' + g, className: 'py-2 rounded-lg border text-sm', onClick: (e) => {
-          document.querySelectorAll('[id^=gender-]').forEach(b => { b.className = 'py-2 rounded-lg border text-sm'; });
-          e.target.className = 'py-2 rounded-lg border text-sm bg-indigo-600 text-white border-indigo-600';
-          e.target.dataset.selected = 'true';
-        }}, t(g)))
-      ),
-      h('input', { id: 'add-yob', type: 'number', min: '1900', max: '2030', placeholder: t('yearOfBirth'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
-      h('input', { id: 'add-location', type: 'text', placeholder: t('location'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
-      h('input', { id: 'add-phone', type: 'tel', placeholder: t('phone'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
-      h('input', { id: 'add-facebook', type: 'url', placeholder: t('facebookUrl'), className: 'w-full h-10 px-3 border rounded-lg text-sm' }),
+      taWrap,
+      linkedBadge,
+      newFields,
       h('div', { id: 'add-error', className: 'text-sm text-red-500 hidden' }),
       h('button', { className: 'w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700', onClick: async () => {
-        const name = $('add-name').value.trim();
-        const genderBtn = document.querySelector('[id^=gender-][data-selected=true]');
-        const gender = genderBtn ? genderBtn.id.replace('gender-', '') : 'other';
-        if (!name) { $('add-error').textContent = t('nameRequired'); $('add-error').classList.remove('hidden'); return; }
         try {
-          const relatedMember = relatedId ? state.members.find(m => m.id === relatedId) : null;
-          const relatedGen = relatedMember ? relatedMember.generation : 0;
-          let generation = 0;
-          if (relType === 'child') generation = relatedGen + 1;
-          else if (relType === 'parent-of') generation = relatedGen - 1;
-          else if (relType === 'spouse' || relType === 'sibling') generation = relatedGen;
+          if (selectedExisting) {
+            // Link existing member
+            await linkRelationship(selectedExisting.id);
+          } else {
+            // Create new member
+            const name = nameInput.value.trim();
+            const genderBtn = document.querySelector('[id^=gender-][data-selected=true]');
+            const gender = genderBtn ? genderBtn.id.replace('gender-', '') : 'other';
+            if (!name) { $('add-error').textContent = t('nameRequired'); $('add-error').classList.remove('hidden'); return; }
+            const relatedMember = relatedId ? state.members.find(m => m.id === relatedId) : null;
+            const relatedGen = relatedMember ? relatedMember.generation : 0;
+            let generation = 0;
+            if (relType === 'child') generation = relatedGen + 1;
+            else if (relType === 'parent-of') generation = relatedGen - 1;
+            else if (relType === 'spouse' || relType === 'sibling') generation = relatedGen;
 
-          const res = await apiPost('/trees/' + slug + '/members', {
-            name, gender, generation,
-            dateOfBirth: $('add-yob').value ? $('add-yob').value + '-01-01' : undefined,
-            location: $('add-location').value || undefined,
-            phone: $('add-phone').value || undefined,
-            facebookUrl: $('add-facebook').value || undefined
-          });
-          state.members.push({ id: res.id, name, gender, generation, dateOfBirth: $('add-yob').value ? $('add-yob').value + '-01-01' : undefined, location: $('add-location').value || undefined });
-          if (relatedId && relType) {
-            // Determine D1 relationship type and direction
-            let dbType, fromId, toId;
-            if (relType === 'child') { dbType = 'parent'; fromId = relatedId; toId = res.id; }
-            else if (relType === 'parent-of') { dbType = 'parent'; fromId = res.id; toId = relatedId; }
-            else if (relType === 'spouse') { dbType = 'spouse'; fromId = relatedId; toId = res.id; }
-            else if (relType === 'sibling') { dbType = 'sibling'; fromId = relatedId; toId = res.id; }
-            const relRes = await apiPost('/trees/' + slug + '/relationships', {
-              type: dbType, fromMemberId: fromId, toMemberId: toId
+            const res = await apiPost('/trees/' + slug + '/members', {
+              name, gender, generation,
+              dateOfBirth: $('add-yob').value ? $('add-yob').value + '-01-01' : undefined,
+              location: $('add-location').value || undefined,
+              phone: $('add-phone').value || undefined,
+              facebookUrl: $('add-facebook').value || undefined
             });
-            state.relationships.push({ id: relRes.id, type: dbType, fromMemberId: fromId, toMemberId: toId });
-            // When adding a child, also link spouse as parent
-            if (relType === 'child') {
-              const spouse = getSpouse(relatedId);
-              if (spouse) {
-                const spouseRel = await apiPost('/trees/' + slug + '/relationships', {
-                  type: 'parent', fromMemberId: spouse.id, toMemberId: res.id
-                });
-                state.relationships.push({ id: spouseRel.id, type: 'parent', fromMemberId: spouse.id, toMemberId: res.id });
-              }
-            }
+            state.members.push({ id: res.id, name, gender, generation, dateOfBirth: $('add-yob').value ? $('add-yob').value + '-01-01' : undefined, location: $('add-location').value || undefined });
+            await linkRelationship(res.id);
           }
           overlay.remove();
           render();
@@ -1132,7 +1232,7 @@ function showAddMemberModal(slug, relatedId, relType) {
     )
   );
   document.body.appendChild(overlay);
-  setTimeout(() => $('add-name')?.focus(), 50);
+  setTimeout(() => nameInput.focus(), 50);
 }
 
 function showEditMemberModal(slug, member) {
