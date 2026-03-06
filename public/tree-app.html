@@ -117,6 +117,90 @@ tailwind.config = {
   }
   .typeahead-item:hover, .typeahead-item.active { background: #f0f0ff; }
   .typeahead-item .ta-meta { font-size: 11px; color: #94a3b8; }
+
+  /* Browse / Swipe view */
+  .browse-container {
+    position: fixed; inset: 0; top: 56px; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden; touch-action: none; user-select: none;
+  }
+  .browse-card-area {
+    position: relative; width: 100%; max-width: 380px; height: 420px;
+    display: flex; align-items: center; justify-content: center;
+    perspective: 1000px;
+  }
+  .browse-card {
+    position: absolute; width: 320px; max-width: 85vw;
+    background: #fff; border-radius: 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+    padding: 32px 24px; text-align: center;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+    will-change: transform, opacity;
+  }
+  .browse-card.swiping { transition: none; }
+  .browse-card.exit-left { transform: translateX(-120%) rotate(-12deg); opacity: 0; }
+  .browse-card.exit-right { transform: translateX(120%) rotate(12deg); opacity: 0; }
+  .browse-card.exit-up { transform: translateY(-120%) scale(0.9); opacity: 0; }
+  .browse-card.exit-down { transform: translateY(120%) scale(0.9); opacity: 0; }
+  .browse-card.enter-left { transform: translateX(-80%) rotate(-8deg); opacity: 0; }
+  .browse-card.enter-right { transform: translateX(80%) rotate(8deg); opacity: 0; }
+  .browse-card.enter-up { transform: translateY(-80%) scale(0.9); opacity: 0; }
+  .browse-card.enter-down { transform: translateY(80%) scale(0.9); opacity: 0; }
+  .browse-card.bounce-left { animation: bounceL 0.4s ease; }
+  .browse-card.bounce-right { animation: bounceR 0.4s ease; }
+  .browse-card.bounce-up { animation: bounceU 0.4s ease; }
+  .browse-card.bounce-down { animation: bounceD 0.4s ease; }
+  @keyframes bounceL { 0%,100% { transform: translateX(0); } 40% { transform: translateX(-30px); } }
+  @keyframes bounceR { 0%,100% { transform: translateX(0); } 40% { transform: translateX(30px); } }
+  @keyframes bounceU { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-30px); } }
+  @keyframes bounceD { 0%,100% { transform: translateY(0); } 40% { transform: translateY(30px); } }
+
+  .browse-card .card-name { font-size: 24px; font-weight: 700; color: #1e293b; line-height: 1.2; }
+  .browse-card .card-spouse { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; font-size: 14px; color: #6366f1; }
+  .browse-card .card-years { font-size: 14px; color: #64748b; margin-top: 8px; }
+  .browse-card .card-location { font-size: 13px; color: #94a3b8; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .browse-card .card-relation { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 99px; margin-bottom: 16px; }
+  .browse-card .card-divider { height: 1px; background: #e2e8f0; margin: 16px 0; }
+  .browse-card .card-gender-bar { height: 4px; border-radius: 2px; width: 60px; margin: 0 auto 16px; }
+  .browse-card .card-phone { font-size: 13px; margin-top: 8px; }
+  .browse-card .card-phone a { color: #6366f1; text-decoration: none; }
+
+  /* Direction hints */
+  .browse-hint {
+    position: absolute; display: flex; align-items: center; justify-content: center;
+    color: #94a3b8; transition: opacity 0.3s, transform 0.3s;
+  }
+  .browse-hint.top { top: 8px; left: 50%; transform: translateX(-50%); flex-direction: column; }
+  .browse-hint.bottom { bottom: 8px; left: 50%; transform: translateX(-50%); flex-direction: column; }
+  .browse-hint.left { left: 8px; top: 50%; transform: translateY(-50%); }
+  .browse-hint.right { right: 8px; top: 50%; transform: translateY(-50%); }
+  .browse-hint .hint-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .browse-hint .hint-chevron { animation: pulse-hint 2s ease-in-out infinite; }
+  @keyframes pulse-hint { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+  /* Sibling dots */
+  .browse-dots {
+    display: flex; gap: 6px; align-items: center; justify-content: center;
+    margin-top: 16px;
+  }
+  .browse-dots .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;
+    transition: background 0.3s, transform 0.3s;
+  }
+  .browse-dots .dot.active { background: #6366f1; transform: scale(1.3); }
+
+  /* Bottom toolbar */
+  .browse-toolbar {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px; align-items: center;
+  }
+  .browse-toolbar button {
+    width: 44px; height: 44px; border-radius: 50%; border: 2px solid #e2e8f0;
+    background: #fff; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s; color: #64748b;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .browse-toolbar button:hover { border-color: #6366f1; color: #6366f1; transform: scale(1.1); }
 </style>
 </head>
 <body>
@@ -135,6 +219,7 @@ function parseRoute() {
   const slug = segments[0];
   if (segments.length === 1) return { view: 'tree', slug, memberId: '' };
   if (segments[1] === 'member' && segments[2]) return { view: 'member', slug, memberId: segments[2] };
+  if (segments[1] === 'browse' && segments[2]) return { view: 'browse', slug, memberId: segments[2] };
   if (segments[1] === 'search') return { view: 'search', slug, memberId: '' };
   if (segments[1] === 'print') return { view: 'print', slug, memberId: '' };
   return { view: 'tree', slug, memberId: '' };
@@ -143,7 +228,7 @@ function parseRoute() {
 // ---- i18n ----
 const translations = {
   en: {
-    tree: 'Tree', search: 'Search', print: 'Print', editing: 'Editing', edit: 'Edit',
+    tree: 'Tree', search: 'Search', print: 'Print', browse: 'Browse', editing: 'Editing', edit: 'Edit',
     familyTree: 'Family Tree', familyInfo: 'Family info',
     noMembersYet: 'No family members yet.', addFirstMember: '+ Add First Member', addMember: '+ Add Member',
     memberNotFound: 'Member not found', noConnections: 'No connections yet',
@@ -174,7 +259,7 @@ const translations = {
     copyLink: 'Copy link', copyMessage: 'Copy message with link', scanQR: 'Scan to open tree',
   },
   te: {
-    tree: 'వృక్షం', search: 'వెతుకు', print: 'ముద్రించు', editing: 'సవరిస్తున్నారు', edit: 'సవరించు',
+    tree: 'వృక్షం', search: 'వెతుకు', print: 'ముద్రించు', browse: 'చూడు', editing: 'సవరిస్తున్నారు', edit: 'సవరించు',
     familyTree: 'వంశవృక్షం', familyInfo: 'కుటుంబ సమాచారం',
     noMembersYet: 'ఇంకా కుటుంబ సభ్యులు లేరు.', addFirstMember: '+ మొదటి సభ్యుడిని చేర్చండి', addMember: '+ సభ్యుడిని చేర్చండి',
     memberNotFound: 'సభ్యుడు కనుగొనబడలేదు', noConnections: 'ఇంకా సంబంధాలు లేవు',
@@ -205,7 +290,7 @@ const translations = {
     copyLink: 'లింక్ కాపీ చేయండి', copyMessage: 'లింక్‌తో సందేశం కాపీ చేయండి', scanQR: 'ట్రీ తెరవడానికి స్కాన్ చేయండి',
   },
   or: {
-    tree: 'ବୃକ୍ଷ', search: 'ଖୋଜ', print: 'ଛାପ', editing: 'ସଂପାଦନା', edit: 'ସଂପାଦନ',
+    tree: 'ବୃକ୍ଷ', search: 'ଖୋଜ', print: 'ଛାପ', browse: 'ଦେଖ', editing: 'ସଂପାଦନା', edit: 'ସଂପାଦନ',
     familyTree: 'ବଂଶବୃକ୍ଷ', familyInfo: 'ପରିବାର ସୂଚନା',
     noMembersYet: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ପରିବାର ସଦସ୍ୟ ନାହାଁନ୍ତି।', addFirstMember: '+ ପ୍ରଥମ ସଦସ୍ୟ ଯୋଡ଼ନ୍ତୁ', addMember: '+ ସଦସ୍ୟ ଯୋଡ଼ନ୍ତୁ',
     memberNotFound: 'ସଦସ୍ୟ ମିଳିଲା ନାହିଁ', noConnections: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ସଂପର୍କ ନାହିଁ',
@@ -513,6 +598,7 @@ const icons = {
   menu: (sz) => svg(['M3 12h18', 'M3 6h18', 'M3 18h18'], sz),
   x: (sz) => svg(['M18 6L6 18', 'M6 6l12 12'], sz),
   globe: (sz) => svg(['<circle cx="12" cy="12" r="10"/>', 'M2 12h20', 'M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z'], sz),
+  swipe: (sz) => svg(['M14 2l6 6-6 6', 'M4 16l-2-2 2-2', 'M20 8H4', 'M2 14h4'], sz),
 };
 
 function renderHeader(slug) {
@@ -555,9 +641,19 @@ function renderHeader(slug) {
 
   const shareLink = h('button', { className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1', onClick: doShare }, icons.share(14), ' ' + t('share'));
 
+  // Find a root member for browse entry
+  const browseRoot = state.members.length > 0 ? (function() {
+    const hasParent = new Set();
+    state.relationships.filter(r => r.type === 'parent').forEach(r => hasParent.add(r.toMemberId));
+    const root = state.members.find(m => !hasParent.has(m.id));
+    return root || state.members[0];
+  })() : null;
+  const browseHref = browseRoot ? '/tree/' + slug + '/browse/' + browseRoot.id : '#';
+
   // Mobile menu (hidden by default)
   const mobileShareBtn = h('button', { className: 'text-sm px-3 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1 w-full', onClick: doShare }, icons.share(14), ' ' + t('share'));
   const mobileMenu = h('div', { className: 'mobile-menu' },
+    navLink(browseHref, t('browse')),
     navLink('/tree/' + slug + '/search', t('search')),
     navLink('/tree/' + slug + '/print', t('print')),
     mobileShareBtn,
@@ -592,6 +688,7 @@ function renderHeader(slug) {
         }}, icons.info(16)) : null
       ),
       h('nav', { className: 'nav-desktop' },
+        navLink(browseHref, t('browse')),
         navLink('/tree/' + slug + '/search', t('search')),
         navLink('/tree/' + slug + '/print', t('print')),
         shareLink,
@@ -1016,6 +1113,7 @@ function renderMemberView(slug, memberId) {
         member.bio ? h('p', { className: 'text-sm text-gray-600 mt-3' }, member.bio) : null,
         h('div', { className: 'flex flex-wrap justify-center gap-2 mt-4' },
           h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showEditMemberModal(slug, member)) }, icons.edit(14), ' ' + t('edit')),
+          h('a', { href: '/tree/' + slug + '/browse/' + member.id, className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-indigo-50 hover:border-indigo-200 inline-flex items-center gap-1', style: { textDecoration: 'none', color: 'inherit' } }, icons.swipe(14), ' Browse'),
           h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'child')) }, icons.baby(14), ' ' + t('addChild')),
           h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'parent-of')) }, icons.parent(14), ' ' + t('addParent')),
           h('button', { className: 'text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50', onClick: () => guardEdit(slug, () => showAddMemberModal(slug, member.id, 'sibling')) }, icons.users(14), ' ' + t('addSibling')),
@@ -1735,6 +1833,275 @@ function showEditMemberModal(slug, member) {
   document.body.appendChild(overlay);
 }
 
+// ---- Browse / Swipe view ----
+function renderBrowseView(slug, memberId) {
+  const member = state.members.find(m => m.id === memberId);
+  if (!member) {
+    return h('div', { className: 'min-h-screen bg-gray-50' },
+      renderHeader(slug),
+      h('div', { className: 'text-center py-20' }, h('p', { className: 'text-gray-500' }, t('memberNotFound')))
+    );
+  }
+
+  const spouses = getSpouses(memberId);
+  const parents = getParents(memberId);
+  const children = getChildren(memberId).sort((a, b) => {
+    const ya = a.dateOfBirth ? parseInt(a.dateOfBirth) : 9999;
+    const yb = b.dateOfBirth ? parseInt(b.dateOfBirth) : 9999;
+    return ya - yb;
+  });
+  const siblings = getSiblings(memberId).sort((a, b) => {
+    const ya = a.dateOfBirth ? parseInt(a.dateOfBirth) : 9999;
+    const yb = b.dateOfBirth ? parseInt(b.dateOfBirth) : 9999;
+    return ya - yb;
+  });
+
+  // Build the ordered sibling list with current member included
+  const allSiblings = [...siblings];
+  // Insert current member in birth-order position
+  let myIndex = 0;
+  const myYear = member.dateOfBirth ? parseInt(member.dateOfBirth) : 9999;
+  for (let i = 0; i < allSiblings.length; i++) {
+    const sy = allSiblings[i].dateOfBirth ? parseInt(allSiblings[i].dateOfBirth) : 9999;
+    if (myYear <= sy) { myIndex = i; break; }
+    myIndex = i + 1;
+  }
+  allSiblings.splice(myIndex, 0, member);
+  const siblingIndex = myIndex;
+
+  // Relationship label from navigation
+  const navFrom = window._browseNavFrom || null;
+  let relationLabel = '';
+  let relationColor = '';
+  if (navFrom === 'up') { relationLabel = member.gender === 'female' ? 'Mother' : member.gender === 'male' ? 'Father' : 'Parent'; relationColor = 'bg-purple-100 text-purple-700'; }
+  else if (navFrom === 'down') { relationLabel = member.gender === 'female' ? 'Daughter' : member.gender === 'male' ? 'Son' : 'Child'; relationColor = 'bg-green-100 text-green-700'; }
+  else if (navFrom === 'left' || navFrom === 'right') { relationLabel = member.gender === 'female' ? 'Sister' : member.gender === 'male' ? 'Brother' : 'Sibling'; relationColor = 'bg-blue-100 text-blue-700'; }
+
+  // Gender bar color
+  const genderBarColor = member.gender === 'male' ? '#93c5fd' : member.gender === 'female' ? '#f9a8d4' : '#c4b5fd';
+
+  // Build card content
+  function buildCard() {
+    const parts = [];
+
+    // Relation badge
+    if (relationLabel) {
+      parts.push(h('div', { className: 'card-relation ' + relationColor }, relationLabel));
+    }
+
+    // Gender bar
+    parts.push(h('div', { className: 'card-gender-bar', style: { background: genderBarColor } }));
+
+    // Name
+    parts.push(h('div', { className: 'card-name' }, tlName(member)));
+
+    // Spouse(s)
+    if (spouses.length > 0) {
+      for (const sp of spouses) {
+        parts.push(h('div', { className: 'card-spouse' },
+          icons.heart(14),
+          h('span', null, tlName(sp))
+        ));
+      }
+    }
+
+    // Years
+    if (member.dateOfBirth) {
+      const yearStr = getYear(member.dateOfBirth) + (member.dateOfDeath ? ' – ' + getYear(member.dateOfDeath) : '');
+      parts.push(h('p', { className: 'card-years' }, yearStr));
+    }
+    if (member.dateOfDeath && !member.dateOfBirth) {
+      parts.push(h('p', { className: 'card-years' }, t('died') + ' ' + getYear(member.dateOfDeath)));
+    }
+
+    // Location
+    if (member.location) {
+      parts.push(h('div', { className: 'card-location' }, icons.mapPin(13), ' ' + tl(member.location)));
+    }
+
+    // Phone
+    if (member.phone) {
+      parts.push(h('div', { className: 'card-phone' }, h('a', { href: 'tel:' + member.phone }, member.phone)));
+    }
+
+    // Divider + bio
+    if (member.bio) {
+      parts.push(h('div', { className: 'card-divider' }));
+      parts.push(h('p', { style: { fontSize: '13px', color: '#64748b', lineHeight: '1.5' } }, member.bio));
+    }
+
+    return parts;
+  }
+
+  const card = h('div', { className: 'browse-card' }, ...buildCard());
+  const cardArea = h('div', { className: 'browse-card-area' }, card);
+
+  // Direction hint arrows
+  function chevronSvg(direction) {
+    const paths = { up: 'M18 15l-6-6-6 6', down: 'M6 9l6 6 6-6', left: 'M15 18l-6-6 6-6', right: 'M9 18l6-6-6-6' };
+    return svg(paths[direction], 20);
+  }
+
+  if (parents.length > 0) {
+    cardArea.appendChild(h('div', { className: 'browse-hint top' },
+      h('div', { className: 'hint-chevron' }, chevronSvg('up')),
+      h('div', { className: 'hint-label' }, parents.length === 1 ? tlName(parents[0]) : 'Parents')
+    ));
+  }
+  if (children.length > 0) {
+    cardArea.appendChild(h('div', { className: 'browse-hint bottom' },
+      h('div', { className: 'hint-label' }, children.length === 1 ? tlName(children[0]) : children.length + ' children'),
+      h('div', { className: 'hint-chevron' }, chevronSvg('down'))
+    ));
+  }
+  if (siblingIndex > 0) {
+    cardArea.appendChild(h('div', { className: 'browse-hint left' },
+      h('div', { className: 'hint-chevron' }, chevronSvg('left'))
+    ));
+  }
+  if (siblingIndex < allSiblings.length - 1) {
+    cardArea.appendChild(h('div', { className: 'browse-hint right' },
+      h('div', { className: 'hint-chevron' }, chevronSvg('right'))
+    ));
+  }
+
+  // Sibling dots
+  const dots = h('div', { className: 'browse-dots' });
+  if (allSiblings.length > 1) {
+    allSiblings.forEach((s, i) => {
+      dots.appendChild(h('div', { className: 'dot' + (i === siblingIndex ? ' active' : ''), title: tlName(s) }));
+    });
+  }
+
+  // Navigate to another member in browse mode
+  function navigateTo(targetId, direction) {
+    window._browseNavFrom = direction;
+    history.pushState(null, '', '/tree/' + slug + '/browse/' + targetId);
+    render();
+  }
+
+  // Swipe / gesture handling
+  let startX = 0, startY = 0, dx = 0, dy = 0, swiping = false;
+  const THRESHOLD = 60;
+
+  function onStart(e) {
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX; startY = touch.clientY;
+    dx = 0; dy = 0; swiping = true;
+    card.classList.add('swiping');
+  }
+  function onMove(e) {
+    if (!swiping) return;
+    const touch = e.touches ? e.touches[0] : e;
+    dx = touch.clientX - startX;
+    dy = touch.clientY - startY;
+    // Dampen the movement
+    const factor = 0.6;
+    card.style.transform = 'translate(' + (dx * factor) + 'px, ' + (dy * factor) + 'px) rotate(' + (dx * 0.05) + 'deg)';
+  }
+  function onEnd() {
+    if (!swiping) return;
+    swiping = false;
+    card.classList.remove('swiping');
+
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+    const isHorizontal = absDx > absDy;
+
+    if (isHorizontal && absDx > THRESHOLD) {
+      if (dx < 0 && siblingIndex < allSiblings.length - 1) {
+        // Swipe left → next sibling
+        card.classList.add('exit-left');
+        setTimeout(() => navigateTo(allSiblings[siblingIndex + 1].id, 'left'), 250);
+        return;
+      } else if (dx > 0 && siblingIndex > 0) {
+        // Swipe right → previous sibling
+        card.classList.add('exit-right');
+        setTimeout(() => navigateTo(allSiblings[siblingIndex - 1].id, 'right'), 250);
+        return;
+      } else {
+        // Dead end bounce
+        card.classList.add(dx < 0 ? 'bounce-left' : 'bounce-right');
+        setTimeout(() => { card.classList.remove('bounce-left', 'bounce-right'); }, 400);
+      }
+    } else if (!isHorizontal && absDy > THRESHOLD) {
+      if (dy < 0 && parents.length > 0) {
+        // Swipe up → parents
+        card.classList.add('exit-up');
+        setTimeout(() => navigateTo(parents[0].id, 'down'), 250);
+        return;
+      } else if (dy > 0 && children.length > 0) {
+        // Swipe down → children
+        card.classList.add('exit-down');
+        setTimeout(() => navigateTo(children[0].id, 'up'), 250);
+        return;
+      } else {
+        card.classList.add(dy < 0 ? 'bounce-up' : 'bounce-down');
+        setTimeout(() => { card.classList.remove('bounce-up', 'bounce-down'); }, 400);
+      }
+    }
+
+    // Snap back
+    card.style.transform = '';
+  }
+
+  // Apply entry animation based on navigation direction
+  if (navFrom) {
+    // Card enters from opposite direction
+    const enterClass = { up: 'enter-up', down: 'enter-down', left: 'enter-right', right: 'enter-left' }[navFrom];
+    card.classList.add(enterClass);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { card.classList.remove(enterClass); });
+    });
+    window._browseNavFrom = null;
+  }
+
+  // Bottom toolbar
+  const toolbar = h('div', { className: 'browse-toolbar' },
+    // Back in history
+    h('button', { title: 'Back', onClick: () => { if (history.length > 1) history.back(); else { window.location.href = '/tree/' + slug; } } },
+      svg(['M19 12H5', 'M12 19l-7-7 7-7'], 20)
+    ),
+    // View profile
+    h('button', { title: 'View Profile', onClick: () => { window.location.href = '/tree/' + slug + '/member/' + memberId; } },
+      svg(['M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2', '<circle cx="12" cy="7" r="4"/>'], 20)
+    ),
+    // Tree view
+    h('button', { title: 'Tree View', onClick: () => { window.location.href = '/tree/' + slug; } },
+      icons.tree(20)
+    )
+  );
+
+  const container = h('div', { className: 'browse-container' }, cardArea, dots, toolbar);
+
+  // Touch events
+  container.addEventListener('touchstart', onStart, { passive: true });
+  container.addEventListener('touchmove', onMove, { passive: true });
+  container.addEventListener('touchend', onEnd);
+  // Mouse events for desktop testing
+  container.addEventListener('mousedown', onStart);
+  container.addEventListener('mousemove', onMove);
+  container.addEventListener('mouseup', onEnd);
+  container.addEventListener('mouseleave', () => { if (swiping) onEnd(); });
+
+  // Keyboard navigation
+  function onKey(e) {
+    if (e.key === 'ArrowLeft' && siblingIndex > 0) navigateTo(allSiblings[siblingIndex - 1].id, 'right');
+    else if (e.key === 'ArrowRight' && siblingIndex < allSiblings.length - 1) navigateTo(allSiblings[siblingIndex + 1].id, 'left');
+    else if (e.key === 'ArrowUp' && parents.length > 0) { e.preventDefault(); navigateTo(parents[0].id, 'down'); }
+    else if (e.key === 'ArrowDown' && children.length > 0) { e.preventDefault(); navigateTo(children[0].id, 'up'); }
+  }
+  document.addEventListener('keydown', onKey);
+  // Cleanup on next render
+  const origRender = render;
+  const cleanup = () => { document.removeEventListener('keydown', onKey); };
+  container._cleanup = cleanup;
+
+  return h('div', { className: 'min-h-screen' },
+    renderHeader(slug),
+    container
+  );
+}
+
 // ---- Main render ----
 function render() {
   const route = parseRoute();
@@ -1758,7 +2125,12 @@ function render() {
     return;
   }
 
+  // Cleanup previous browse view keyboard listener
+  const prevBrowse = app.querySelector('.browse-container');
+  if (prevBrowse && prevBrowse._cleanup) prevBrowse._cleanup();
+
   if (route.view === 'member') app.appendChild(renderMemberView(route.slug, route.memberId));
+  else if (route.view === 'browse') app.appendChild(renderBrowseView(route.slug, route.memberId));
   else if (route.view === 'search') app.appendChild(renderSearchView(route.slug));
   else if (route.view === 'print') app.appendChild(renderPrintView(route.slug));
   else app.appendChild(renderTreeView(route.slug));
